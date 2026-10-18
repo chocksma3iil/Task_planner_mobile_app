@@ -1,0 +1,6 @@
+# Editor settings with machine-local paths
+.vscode/
+
+# OS noise
+.DS_Store
+Thumbs.db
