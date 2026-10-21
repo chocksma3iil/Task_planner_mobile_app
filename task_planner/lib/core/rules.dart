@@ -44,11 +44,14 @@ bool isOwnerOrAdmin(String role) =>
     role == Roles.admin || role == Roles.projectOwner;
 
 /// Tabs visible for a role, in display order.
+///
+/// Admins have no personal task list (they cannot be assignees); the
+/// "mine" tab is for project owners and users.
 List<String> visibleTabs(String role) {
   if (isAdmin(role)) {
     return const ['projects', 'members', 'tasks'];
   }
-  return const ['members', 'tasks'];
+  return const ['members', 'tasks', 'mine'];
 }
 
 /// Throws [StateError] unless [role] is admin.

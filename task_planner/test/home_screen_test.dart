@@ -8,6 +8,7 @@ import 'package:task_planner/features/auth/presentation/session_providers.dart';
 import 'package:task_planner/features/settings/application/theme_mode_provider.dart';
 import 'package:task_planner/features/tasks/application/member_service.dart';
 import 'package:task_planner/features/tasks/application/project_service.dart';
+import 'package:task_planner/features/tasks/application/task_service.dart';
 
 /// Widget tests for the post-login shell: each role must see its tabs and
 /// data without stuck spinners, fake emptiness, or "Logged out." states.
@@ -98,7 +99,7 @@ void main() {
       (tester) async {
     await pumpApp(tester, owner);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(2));
+    expect(find.byType(NavigationDestination), findsNWidgets(3));
     expect(find.text('Projects'), findsNothing);
     expect(find.text('No members yet'), findsNothing);
     expect(find.text('Logged out.'), findsNothing);
@@ -112,7 +113,7 @@ void main() {
       (tester) async {
     await pumpApp(tester, user);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(2));
+    expect(find.byType(NavigationDestination), findsNWidgets(3));
     expect(find.text('Waiting for confirmation'), findsNothing);
     expect(find.text('Olive Owner'), findsWidgets);
     expect(find.text('Carol Guest'), findsWidgets);
@@ -153,5 +154,33 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
     expect(await SettingsService(db).read('themeMode'), 'dark');
+  });
+
+  testWidgets('Mine tab shows only tasks assigned to the logged-in user',
+      (tester) async {
+    final taskService = TaskService(db);
+    await taskService.createTask(
+      actor: admin,
+      projectId: owner.projectId!,
+      title: 'Assigned to Bob',
+      assigneeId: user.id,
+    );
+    await taskService.createTask(
+      actor: admin,
+      projectId: owner.projectId!,
+      title: 'Whole project task',
+    );
+
+    await pumpApp(tester, user);
+
+    await tester.tap(find.text('Mine'));
+    // One frame to switch tabs and subscribe, then time for the stream.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Assigned to me'), findsOneWidget);
+    expect(find.text('Assigned to Bob'), findsOneWidget);
+    expect(find.text('Whole project task'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

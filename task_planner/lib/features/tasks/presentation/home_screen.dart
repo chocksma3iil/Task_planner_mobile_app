@@ -7,6 +7,7 @@ import '../../../core/theme.dart';
 import '../../auth/presentation/session_providers.dart';
 import '../../settings/application/theme_mode_provider.dart';
 import 'members_tab.dart';
+import 'my_tasks_tab.dart';
 import 'projects_tab.dart';
 import 'tasks_tab.dart';
 
@@ -25,12 +26,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     'projects': 'Projects',
     'members': 'Members',
     'tasks': 'Tasks',
+    'mine': 'Assigned to me',
+  };
+
+  // Short labels for the bottom navigation bar.
+  static const _navLabels = {
+    'projects': 'Projects',
+    'members': 'Members',
+    'tasks': 'Tasks',
+    'mine': 'Mine',
   };
 
   static const _icons = {
     'projects': Icons.folder_outlined,
     'members': Icons.people_outline,
     'tasks': Icons.checklist_outlined,
+    'mine': Icons.person_outline,
   };
 
   @override
@@ -147,7 +158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               for (final tab in tabs)
                 NavigationDestination(
                   icon: Icon(_icons[tab]),
-                  label: _titles[tab]!,
+                  label: _navLabels[tab]!,
                 ),
             ],
           ),
@@ -190,6 +201,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return const ProjectsTab();
       case 'members':
         return const MembersTab();
+      case 'mine':
+        return const MyTasksTab();
       case 'tasks':
       default:
         return const TasksTab();

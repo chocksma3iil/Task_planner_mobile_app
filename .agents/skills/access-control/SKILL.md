@@ -35,14 +35,15 @@ Three cumulative roles: an admin can do everything a project owner and a user ca
 
 **Admin (setup).** Log in → Projects tab → create project → assign its owner → optionally create users directly (active immediately). Can open every tab across all projects.
 
-## Tabs per role (proposed)
+## Tabs per role (approved 2026-10-18)
 
 - **Projects** — admin only: create projects, list all, assign owners.
 - **Members** — all roles, scoped: user sees their own project's roster; owner sees their projects' rosters with pending/active statuses plus the pending-requests section; admin sees everyone including roles.
 - **Tasks** — all roles, scoped: user sees own project's tasks; owner their projects'; admin all.
+- **Mine** — owner and user (not admin, who can never be an assignee): tasks assigned to the logged-in person only (`assignee_id` = viewer), enforced by `TaskService.watchTasksAssignedTo`.
 - **Approvals** live inside the Members tab as the pending-requests section (owner/admin only), not as a separate tab — the brief asks for minimal screens.
 
-Tab structure is proposed, not approved; record changes under `docs/decisions/`.
+Tab changes are business-rule changes; record them under `docs/decisions/`.
 
 ## Data scoping
 

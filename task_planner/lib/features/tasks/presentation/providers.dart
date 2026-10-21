@@ -31,6 +31,12 @@ final projectTasksProvider =
   return ref.watch(taskServiceProvider).watchProjectTasks(projectId);
 });
 
+/// Tasks assigned to the logged-in person (the "Mine" tab).
+final myTasksProvider =
+    StreamProvider.family<List<Task>, int>((ref, assigneeId) {
+  return ref.watch(taskServiceProvider).watchTasksAssignedTo(assigneeId);
+});
+
 /// Members the logged-in user may see.
 ///
 /// Never collapses the account-loading state into an empty list: while the

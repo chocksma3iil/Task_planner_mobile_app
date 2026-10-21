@@ -37,9 +37,9 @@ void main() {
       expect(visibleTabs(Roles.admin), ['projects', 'members', 'tasks']);
     });
 
-    test('owner and user see members and tasks only', () {
-      expect(visibleTabs(Roles.projectOwner), ['members', 'tasks']);
-      expect(visibleTabs(Roles.user), ['members', 'tasks']);
+    test('owner and user see members, tasks, and mine', () {
+      expect(visibleTabs(Roles.projectOwner), ['members', 'tasks', 'mine']);
+      expect(visibleTabs(Roles.user), ['members', 'tasks', 'mine']);
     });
 
     test('requireAdmin rejects non-admins', () {

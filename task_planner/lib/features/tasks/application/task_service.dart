@@ -86,6 +86,17 @@ class TaskService {
         .watch();
   }
 
+  /// Tasks assigned to one person, newest first.
+  ///
+  /// The id comes from the logged-in session, and assignment already
+  /// restricts people to their own project, so this is scope-safe.
+  Stream<List<Task>> watchTasksAssignedTo(int assigneeId) {
+    return (_db.select(_db.tasks)
+          ..where((t) => t.assigneeId.equals(assigneeId))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch();
+  }
+
   /// Every task, for admins.
   Stream<List<Task>> watchAllTasks() {
     return (_db.select(_db.tasks)

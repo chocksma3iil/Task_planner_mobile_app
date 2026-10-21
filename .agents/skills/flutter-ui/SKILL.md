@@ -25,7 +25,7 @@ The app opens on a login page with a link to the sign-up page. Auth screens coll
 
 1. **Login page** — the app's start screen, always shown first; links to sign-up.
 2. **Sign-up page** — reachable only from login (name, email, password, project choice).
-3. **Role tabs, only after successful login** — Projects (admin only — create, list, assign owners), Members (all roles, scoped roster; pending-requests section for owner/admin), Tasks (all roles, scoped).
+3. **Role tabs, only after successful login** — Projects (admin only — create, list, assign owners), Members (all roles, scoped roster; pending-requests section for owner/admin), Tasks (all roles, scoped), Mine (owner and user — tasks assigned to the logged-in person; not admin).
 
 No route may render before authentication completes: deep links and restarts land on the login page first.
 

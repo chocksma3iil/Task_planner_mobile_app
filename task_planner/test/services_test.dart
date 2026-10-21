@@ -178,4 +178,34 @@ void main() {
     await settings.write('themeMode', 'light');
     expect(await settings.read('themeMode'), 'light');
   });
+
+  test('watchTasksAssignedTo returns only that person\'s tasks',
+      () async {
+    final admin = await auth.signUp(
+        name: 'Root', email: 'root@example.com', password: 'pw');
+    final project =
+        await projects.createProject(actor: admin, name: 'Mobile App');
+    final sara = await members.createUser(
+      actor: admin,
+      name: 'Sara',
+      email: 'sara@example.com',
+      password: 'pw',
+      projectId: project.id,
+    );
+    await tasks.createTask(
+      actor: admin,
+      projectId: project.id,
+      title: 'For Sara',
+      assigneeId: sara.id,
+    );
+    await tasks.createTask(
+      actor: admin,
+      projectId: project.id,
+      title: 'For the project',
+    );
+    final mine = await tasks.watchTasksAssignedTo(sara.id).first;
+    expect(mine, hasLength(1));
+    expect(mine.single.title, 'For Sara');
+    expect(mine.single.assigneeId, sara.id);
+  });
 }
