@@ -4,7 +4,7 @@
 
 Build a task planner mobile application using Flutter and Dart.
 
-The first release is intended to be offline-first, with local accounts required.
+The first release uses a FastAPI + MySQL backend (approved 2026-10-21), so the app is online-only; local accounts are required.
 
 Read `PROJECT_BRIEF.md` and relevant files in `docs/` before working.
 
@@ -48,7 +48,7 @@ Ask for explicit approval before:
 
 ## Phase
 
-Discovery is complete and Milestone 1 is built (see IMPLEMENTATION_PLAN.md and the approval decision in docs/decisions/).
+Discovery is complete; Milestones 1–4 are built (see IMPLEMENTATION_PLAN.md and the approval decisions in docs/decisions/). The backend decision (2026-10-21) replaced local SQLite persistence with a FastAPI + MySQL API; feature routes live under `/api/v1` and `/health` stays unversioned. Local development uses Docker Compose for the API, MySQL, and phpMyAdmin; the Flutter SDK stays on the host (see README.md and `docs/decisions/2026-10-22-local-development-onboarding.md`).
 
 For every new change, the Mandatory Development Workflow still applies: propose and wait for explicit approval before implementing.
 
@@ -75,15 +75,15 @@ This document describes the direction to evaluate, not a final approved design.
 
 **Task Planner — Architecture Proposal**
 
-1. **Business Direction** — Build a mobile task planner that works offline. The first release focuses on task management and daily planning. AI planning, cloud sync, and external collaboration are not assumed for the first release. The brief also adds projects as a grouping concept and task assignees (name + position, each assignee belongs to a project). Accounts are local-only with login/sign-up screens and three cumulative roles (admin, project owner, user); admins create projects and assign owners, owners confirm new members.
-2. **Proposed Architecture Style** — A modular monolithic Flutter application organized by feature and responsibility. Avoid unnecessary backend infrastructure.
-3. **Proposed Technology Candidates** — Flutter and Dart, Riverpod for state management and DI, SQLite with Drift for persistence, go_router for navigation, Flutter testing tools. These are proposals requiring review, not approved dependencies.
+1. **Business Direction** — Build a mobile task planner. The first release focuses on task management and daily planning. AI planning, cloud sync, and external collaboration are not assumed for the first release. The brief also adds projects as a grouping concept and task assignees (name + position, each assignee belongs to a project). Accounts use login/sign-up screens and three cumulative roles (admin, project owner, user); admins create projects and assign owners, owners confirm new members.
+2. **Proposed Architecture Style** — A modular monolithic Flutter application in layers (models, screens, services, widgets, providers), plus one small FastAPI service. Avoid unnecessary backend infrastructure.
+3. **Proposed Technology Candidates** — Flutter and Dart, Riverpod for state management and DI, FastAPI + MySQL for persistence, go_router for navigation, Flutter testing tools, pytest. The approved build follows this list; SQLite/Drift was replaced by the backend.
 4. **Proposed Component Boundaries** — Presentation; Application and Business Logic; Domain; Data; Auth (local credentials, session, role checks); Notifications (email via device mail app, proposed); Integrations (e.g. local notifications). Future AI integration, if approved, must operate through controlled application operations and never bypass business rules or modify stored tasks without user authorization.
-5. **Proposed Project Organization** — `lib/app/`, `lib/core/`, `lib/features/tasks/`, `lib/features/planner/`, `lib/features/settings/`, `lib/features/auth/`, `lib/integrations/`, `test/`, `docs/`. Create only the folders needed for approved features.
-6. **Constraints** — No network dependency for task management; local-only accounts with salted password hashes; UI must not access the database directly; business rules testable without the UI; minimal dependencies and abstractions; no backend or cloud auth without approval.
+5. **Proposed Project Organization** — Flutter: `lib/app/`, `lib/core/`, `lib/models/`, `lib/providers/`, `lib/screens/`, `lib/services/`, `lib/widgets/`, `test/`. Backend: `backend/app/{api,core,models,schemas,services}`, `backend/tests/`, `backend/alembic/`. Create only the folders needed for approved features.
+6. **Constraints** — Task data requires the API (online-only; offline sync is not in scope); bcrypt password hashes and role/assignment enforcement on the server; UI must not call the API or database directly; business rules testable without the UI; minimal dependencies and abstractions; no cloud auth provider without approval.
 7. **Proposed Data Model (draft)** — Three tables: `projects` (with `owner_id`), `assignees` (with `project_id`, login email, password hash, role, pending/active status, approved_by), `tasks` (with `project_id` and optional `assignee_id`). Confirmed rules: a task is assigned either to its project as a whole or to one person from that project (never both); a person assignee must belong to the task's project; each person belongs to exactly one project (Option A). Only admins create projects, assign owners, and manage roles; self-registered users stay pending until the project owner confirms them.
 8. **Open Decisions** — Final first-release features (including whether projects/assignees ship in v1); first-admin bootstrap; password recovery without a backend; task statuses, priorities, due-date behavior; categories vs projects; whether the assignee is optional; email notification scope and delivery; local notifications; export and restore; exact dependency choices, code organization, and where assignee management lives.
-9. **Approval Status** — **APPROVED FOR IMPLEMENTATION (2026-10-11).** Milestone 1 built in `task_planner/`; see IMPLEMENTATION_PLAN.md. New changes still follow Inspect → Propose → Approve → Implement → Verify.
+9. **Approval Status** — **APPROVED FOR IMPLEMENTATION (2026-10-11); AMENDED (2026-10-21)** to a FastAPI + MySQL backend and a layer-first Flutter layout. Milestones 1–4 built (`task_planner/` + `backend/`); see IMPLEMENTATION_PLAN.md. New changes still follow Inspect → Propose → Approve → Implement → Verify.
 
 ## 5. How to Give This to OpenCode and Ollama
 

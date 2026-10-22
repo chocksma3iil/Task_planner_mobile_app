@@ -1,5 +1,10 @@
 # Project Brief — Task Planner
 
+> **Amended 2026-10-21:** the approved build uses a FastAPI + MySQL backend and
+> is online-only; the offline-first constraints below are superseded. See
+> `docs/decisions/2026-10-21-fastapi-mysql-backend.md`. Task editing remains a
+> required MVP feature.
+
 ## 1. Project Goal
 
 Build a task planner mobile application that helps the user organize tasks and decide what to work on next.

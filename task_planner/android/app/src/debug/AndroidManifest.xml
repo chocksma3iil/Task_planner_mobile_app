@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Local development talks to FastAPI over plain HTTP. Release builds
+         must use HTTPS; do not copy this into the main manifest. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Single source of truth for the app's look: color scheme, typography,
 /// and component themes. Screens must not hard-code colors or shapes;
-/// read them from [Theme.of] or use the helpers below.
+/// read them from [Theme.of].
 
 const _seed = Colors.indigo;
 
@@ -108,48 +108,6 @@ ThemeData buildTheme(Brightness brightness) {
     dividerTheme: DividerThemeData(
       color: scheme.outlineVariant.withValues(alpha: 0.5),
       space: 1,
-    ),
-  );
-}
-
-/// Color for a task-priority label. Business values are 'low' | 'medium'
-/// | 'high'; unknown values fall back to the neutral outline color.
-Color priorityColor(BuildContext context, String priority) {
-  final scheme = Theme.of(context).colorScheme;
-  switch (priority) {
-    case 'high':
-      return scheme.error;
-    case 'medium':
-      return scheme.tertiary;
-    case 'low':
-      return scheme.primary;
-    default:
-      return scheme.outline;
-  }
-}
-
-/// First letter of [name] for avatar initials; falls back to '?'.
-String initialsOf(String name) {
-  final trimmed = name.trim();
-  if (trimmed.isEmpty) {
-    return '?';
-  }
-  return trimmed.substring(0, 1).toUpperCase();
-}
-
-/// Shared section header used by the list screens (members, task groups).
-Widget sectionHeader(BuildContext context, String text) {
-  final scheme = Theme.of(context).colorScheme;
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.w700,
-        fontSize: 13,
-        letterSpacing: 0.4,
-        color: scheme.primary,
-      ),
     ),
   );
 }

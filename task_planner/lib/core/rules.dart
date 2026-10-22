@@ -1,8 +1,8 @@
 // Pure-Dart business rules. No Flutter, no database: unit-testable in isolation.
 //
 // Mirrors PROJECT_BRIEF.md and docs/ARCHITECTURE_PROPOSAL.md. The services
-// in `features/` enforce these rules against real rows; the checks here are
-// the single definition of each rule.
+// in `lib/services/` enforce these rules against real rows; the checks here
+// are the single definition of each rule.
 
 // Roles (cumulative: admin > project owner > user).
 abstract final class Roles {

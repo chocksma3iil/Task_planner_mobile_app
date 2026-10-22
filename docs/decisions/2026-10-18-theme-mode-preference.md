@@ -12,3 +12,4 @@
 - Verification: `flutter analyze` clean; `flutter test` 32/32 passed, including a settings round-trip test and a widget test that switches to Dark and reads the stored value back.
 - Reverses: the "still open" dark-mode and grouped-sections items in `2026-10-18-empty-members-stuck-spinner-and-dynamic-ui.md`.
 - Still open: whether the theme picker should also appear on the login screen.
+- Superseded storage (2026-10-21): the `AppSettings` table went away with Drift; the same behavior now persists in `shared_preferences` (`ThemeModeController`, now at `lib/providers/theme_mode_provider.dart`). See `2026-10-21-fastapi-mysql-backend.md`.

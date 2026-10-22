@@ -1,13 +1,13 @@
 ---
 name: database-design
-description: Use when changing the data model, database schema, persistence code, repositories, or migrations (SQLite with Drift). Enforces the project, assignee, and task rules from the brief and proposal. Schema and persistence changes need explicit user approval before implementation.
+description: Use when changing the data model, database schema, persistence code, repositories, or migrations (MySQL via SQLAlchemy in `backend/`). Enforces the project, assignee, and task rules from the brief and proposal. Schema and persistence changes need explicit user approval before implementation.
 ---
 
 # Database Design
 
-Source of truth for the model: PROJECT_BRIEF.md (Task Assignment, Assignee Management) and docs/ARCHITECTURE_PROPOSAL.md §8 (draft data model — proposed, not approved).
+Source of truth for the model: PROJECT_BRIEF.md (Task Assignment, Assignee Management) and docs/ARCHITECTURE_PROPOSAL.md §8. The model below is implemented on the server (`backend/app/models/`, `backend/app/schemas/`).
 
-## Current model (draft)
+## Current model (implemented)
 
 - `projects`: id, name, optional description, status (active/archived), `owner_id` (assigned by an admin), created_at.
 - `assignees`: id, name, position (job title, display only — not the access role), `project_id` (each person belongs to exactly one project; admins act across all projects), email (unique login), password_hash (salted), role (admin/project_owner/user, cumulative), status (pending/active), `approved_by` (confirming owner's id, null until confirmed), created_at.
@@ -25,6 +25,8 @@ See the `access-control` skill for roles, capabilities, membership approval, and
 
 ## Constraints
 
-- Offline-first: task management must work with no network.
-- UI code must never access the database directly; business rules must be testable without the UI.
+- Online-only: task data requires the FastAPI API (`/api/v1`); offline sync is out of scope.
+- MySQL stores all data; the server is the single enforcement point for roles, approval, and assignment rules.
+- UI code must never access the API or database directly; business rules must be testable without the UI.
+- Schema changes go through Alembic (`backend/alembic/`); dev startup may create missing tables only in development.
 - Changing the model, tables, or persistence approach requires a proposal and explicit approval (see `interactive-development`, AGENTS.md approval requirements).

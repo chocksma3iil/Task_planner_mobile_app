@@ -5,14 +5,14 @@ description: Use when building or changing screens, widgets, navigation, theming
 
 # Flutter UI
 
-Proposed stack (not approved dependencies): Flutter/Dart, Riverpod for state and DI, go_router for navigation. Proposed layout: `lib/app/`, `lib/core/`, `lib/features/tasks/`, `lib/features/planner/`, `lib/features/settings/`, `lib/integrations/`. Create only folders needed for approved features.
+Approved stack: Flutter/Dart, Riverpod for state and DI, go_router for navigation. Approved layer-first layout: `lib/app/`, `lib/core/`, `lib/models/`, `lib/providers/`, `lib/screens/`, `lib/services/`, `lib/widgets/`. Create only folders needed for approved features.
 
 ## Rules
 
 - Screens and widgets display state and forward user actions to the application layer. No business rules in UI code.
-- UI code must never access the database directly; it goes through repositories via application logic (see `database-design` for the model).
-- Reuse `lib/core/` theme and shared utilities; do not duplicate styling per screen.
-- Navigation changes go through the app router; do not hard-code route strings in widgets.
+- UI code must never call the API, the database, or `HttpApiClient` directly; it goes through providers and services (see `database-design` for the model).
+- Reuse `lib/core/` theme and shared utilities plus `lib/widgets/shared/`; do not duplicate styling per screen.
+- Navigation changes go through `lib/app/router.dart`; do not hard-code route strings in widgets.
 - New screens or navigation structure are application-behavior changes: propose and wait for approval (see `interactive-development`).
 
 ## UX direction (from the brief)

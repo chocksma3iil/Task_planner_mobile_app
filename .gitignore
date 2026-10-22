@@ -1,6 +1,25 @@
 # Editor settings with machine-local paths
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Python backend
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+backend/.env
+
+# Environment files (keep the example)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log

@@ -4,19 +4,28 @@ import 'package:task_planner/core/rules.dart';
 void main() {
   group('task assignment', () {
     test('project-level assignment needs no person', () {
-      validateTaskAssignment(taskProjectId: 1, assigneeId: null,
-          assigneeProjectId: null);
+      validateTaskAssignment(
+        taskProjectId: 1,
+        assigneeId: null,
+        assigneeProjectId: null,
+      );
     });
 
     test('person from the same project is accepted', () {
       validateTaskAssignment(
-          taskProjectId: 1, assigneeId: 7, assigneeProjectId: 1);
+        taskProjectId: 1,
+        assigneeId: 7,
+        assigneeProjectId: 1,
+      );
     });
 
     test('person from another project is rejected', () {
       expect(
         () => validateTaskAssignment(
-            taskProjectId: 1, assigneeId: 7, assigneeProjectId: 2),
+          taskProjectId: 1,
+          assigneeId: 7,
+          assigneeProjectId: 2,
+        ),
         throwsArgumentError,
       );
     });
@@ -72,18 +81,15 @@ void main() {
     test('completed tasks never match today/upcoming/overdue', () {
       const status = TaskStatus.completed;
       expect(
-        isOverdue(
-            status: status, dueDate: DateTime(2026, 10, 11), now: now),
+        isOverdue(status: status, dueDate: DateTime(2026, 10, 11), now: now),
         isFalse,
       );
       expect(
-        isDueToday(
-            status: status, dueDate: DateTime(2026, 10, 12), now: now),
+        isDueToday(status: status, dueDate: DateTime(2026, 10, 12), now: now),
         isFalse,
       );
       expect(
-        isUpcoming(
-            status: status, dueDate: DateTime(2026, 10, 13), now: now),
+        isUpcoming(status: status, dueDate: DateTime(2026, 10, 13), now: now),
         isFalse,
       );
     });
