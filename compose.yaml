@@ -31,6 +31,7 @@ services:
       ENVIRONMENT: development
       CORS_ORIGINS: "*"
       CREATE_SCHEMA_ON_STARTUP: "false"
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"

@@ -88,6 +88,19 @@ No application behavior, API contract, or schema changed.
   `flutter analyze` clean; `flutter test` 29 passed; Windows debug build
   launched.
 
+## Development demo seed data (done 2026-10-25)
+
+Approved in conversation (backend startup seed, password `12345678`, extra
+staff accounts). See `docs/decisions/2026-10-25-demo-seed-data.md`.
+
+- Added idempotent `backend/app/services/seed.py`: demo admin, project manager,
+  3 staff users, `Demo Project`, and 6 tasks (project/person assignments).
+- `SEED_DEMO_DATA` gates seeding in the API lifespan; Compose defaults it to
+  true, production refuses true. No Flutter code changed and no credentials
+  live in the app.
+- Verify: backend `pytest` 34/34; live Compose startup seeded the demo rows
+  without modifying the existing local accounts, project, or task.
+
 ## Next (not approved)
 
 - Notifications, backup/restore.

@@ -1,4 +1,5 @@
 """FastAPI application: versioned API, CORS, error mapping, schema bootstrap."""
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,9 +9,11 @@ from fastapi.responses import JSONResponse
 
 from . import models  # noqa: F401 - registers tables on Base.metadata
 from .api.router import api_router
-from .core.config import CORS_ORIGINS, CREATE_SCHEMA_ON_STARTUP
-from .core.database import Base, engine
+from .core.config import CORS_ORIGINS, CREATE_SCHEMA_ON_STARTUP, SEED_DEMO_DATA
+from .core.database import Base, SessionLocal, engine
 from .core.errors import ApiError
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -18,6 +21,12 @@ async def lifespan(_: FastAPI):
     # Development convenience only; production runs `alembic upgrade head`.
     if CREATE_SCHEMA_ON_STARTUP:
         Base.metadata.create_all(bind=engine)
+    if SEED_DEMO_DATA:
+        from .services.seed import seed_demo_data
+
+        with SessionLocal() as db:
+            seed_demo_data(db)
+        logger.info("Demo data ensured (local development only).")
     yield
 
 

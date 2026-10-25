@@ -77,7 +77,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final projects = ref.watch(projectsProvider);
+    final projects = ref.watch(publicProjectsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Create an account')),
       body: projects.when(

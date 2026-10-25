@@ -206,13 +206,19 @@ class _MembersTabState extends ConsumerState<MembersTab> {
     Account viewer,
   ) async {
     final List<Project> projects;
+    final projectsSubscription = ref.listenManual(
+      publicProjectsProvider,
+      (_, _) {},
+    );
     try {
-      projects = await ref.read(projectsProvider.future);
+      projects = await ref.read(publicProjectsProvider.future);
     } catch (e) {
       if (context.mounted) {
         showAppSnackBar(context, userMessage(e));
       }
       return;
+    } finally {
+      projectsSubscription.close();
     }
     if (!context.mounted) {
       return;

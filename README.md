@@ -161,6 +161,28 @@ not run migrations blindly. Back it up first; after verifying the schema
 matches, `alembic stamp 0001_initial` can mark it as current. Never do this
 against a shared database without authorization.
 
+### Demo data (development only)
+
+When `SEED_DEMO_DATA` is true (the Compose default), the API seeds an idempotent
+demo set on startup. Existing rows are never modified or duplicated. All demo
+accounts use the password `12345678`.
+
+| Email | Role | Project |
+|---|---|---|
+| `admin@demo.local` | admin | none |
+| `manager@demo.local` | project owner | Demo Project |
+| `staff1@demo.local` | user | Demo Project |
+| `staff2@demo.local` | user | Demo Project |
+| `staff3@demo.local` | user | Demo Project |
+
+The seed also creates **Demo Project**, owned by the manager, with six sample
+tasks assigned to the project, the manager, or staff. Because the seeded admin
+exists, the "first account becomes admin" rule no longer applies while seeding
+is enabled.
+
+To start with an empty database, set `SEED_DEMO_DATA=false` in `.env` and run
+`docker compose up -d api`. Production refuses to start with seeding enabled.
+
 ## 6. Run the Flutter application
 
 From the repository root, in a second terminal:
@@ -188,9 +210,11 @@ uses HTTP; release builds should use HTTPS. Android debug builds allow local
 HTTP. iOS blocks cleartext HTTP by default, so iOS device development needs
 HTTPS or a reviewed ATS exception.
 
-The first account registered on a fresh database becomes the admin. Later
+On an unseeded database, the first account registered becomes the admin. Later
 sign-ups join a project as pending members until the project owner or an admin
-confirms them. Passwords must be at least 8 characters.
+confirms them. Passwords must be at least 8 characters. Compose seeds demo
+accounts by default (see section 5), so log in with `admin@demo.local` /
+`12345678` or disable seeding for the bootstrap behavior.
 
 ## 7. Access phpMyAdmin
 

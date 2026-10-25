@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_planner/app/app.dart';
 import 'package:task_planner/models/models.dart';
 import 'package:task_planner/providers/api_providers.dart';
+import 'package:task_planner/providers/data_providers.dart';
 import 'package:task_planner/providers/session_providers.dart';
 import 'package:task_planner/services/api_client.dart';
 
@@ -226,6 +227,20 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
+  testWidgets('admin can open the add-user dialog', (tester) async {
+    await pumpApp(tester, admin);
+
+    await tester.tap(find.text('Members'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.byTooltip('Add user'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Add user'), findsOneWidget);
+    expect(find.text('Project'), findsOneWidget);
+  });
+
   testWidgets(
     'project owner lands on Members with roster and pending section',
     (tester) async {
@@ -357,5 +372,52 @@ void main() {
     expect(find.text('Assigned to Bob'), findsOneWidget);
     expect(find.text('Whole project task'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  test('member roster refetches when a new session starts', () async {
+    api.me = admin;
+    api.members.removeWhere((m) => m.status == 'pending');
+
+    final container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen(visibleMembersProvider, (_, _) {});
+    addTearDown(subscription.close);
+
+    container.read(sessionUserIdProvider.notifier).set(admin.id);
+    await container.pump();
+    final before = await container.read(visibleMembersProvider.future);
+    expect(before.any((m) => m.status == 'pending'), isFalse);
+
+    const pending = Account(
+      id: 99,
+      name: 'New Pending',
+      email: 'new@example.com',
+      projectId: 1,
+      role: 'user',
+      status: 'pending',
+    );
+    api.members.add(pending);
+
+    container.read(sessionUserIdProvider.notifier).set(null);
+    await container.pump();
+    container.read(sessionUserIdProvider.notifier).set(admin.id);
+    await container.pump();
+
+    final after = await container.read(visibleMembersProvider.future);
+    expect(after.map((m) => m.id), contains(pending.id));
+  });
+
+  test('public project list loads without an active session', () async {
+    final container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen(publicProjectsProvider, (_, _) {});
+    addTearDown(subscription.close);
+
+    final projects = await container.read(publicProjectsProvider.future);
+    expect(projects.map((p) => p.id), contains(1));
   });
 }

@@ -64,11 +64,14 @@ TOKEN_TTL_DAYS=30
 ENVIRONMENT=development
 CORS_ORIGINS=*
 CREATE_SCHEMA_ON_STARTUP=true
+SEED_DEMO_DATA=true
 ```
 
 `SECRET_KEY` has a development fallback, but `ENVIRONMENT=production` refuses
 to start with it. `CREATE_SCHEMA_ON_STARTUP` defaults to true outside
 production; Compose sets it to false and uses Alembic instead.
+`SEED_DEMO_DATA` defaults to false; Compose sets it to true for local
+development, and production refuses to start with it enabled.
 
 For a shared database, set `DATABASE_URL` to the shared host and set
 `CREATE_SCHEMA_ON_STARTUP=false`. Never point `TEST_DATABASE_URL` at a shared
@@ -94,7 +97,8 @@ app/
     time.py           # Naive-UTC helper for model defaults and edits.
   models/             # SQLAlchemy tables: project, account (assignees), task.
   schemas/            # Pydantic request/response models + validation.
-  services/           # Business logic; routers stay thin.
+  services/           # Business logic; routers stay thin. seed.py holds the
+                      # idempotent development demo data.
 tests/                # pytest API tests against the MySQL test database.
 Dockerfile            # API image used by the root Compose stack.
 docker/mysql-init/    # creates task_planner_test on first volume initialization.
@@ -138,6 +142,22 @@ Error contract: plain-string `detail` for auth/permission/business/validation
 errors; structured `detail: {code, message}` for assignment validation
 (`invalid_assignment`) and a missing signup project (`project_required`).
 
+## Demo data (development only)
+
+With `SEED_DEMO_DATA=true`, the API lifespan creates the demo admin, manager,
+staff, project, and tasks if they are missing. Reruns never modify or duplicate
+existing rows. All demo accounts use password `12345678`.
+
+| Email | Role | Project |
+|---|---|---|
+| `admin@demo.local` | admin | none |
+| `manager@demo.local` | project owner | Demo Project |
+| `staff1@demo.local`–`staff3@demo.local` | user | Demo Project |
+
+**Demo Project** is owned by the manager and has six tasks assigned to the
+project, the manager, or staff. The seeded admin means the normal
+first-signup-admin bootstrap does not apply while seeding is enabled.
+
 ## Tests
 
 With Compose, the API image already contains the test dependencies and the
@@ -157,7 +177,7 @@ python -m pytest tests -q
 Tests use `TEST_DATABASE_URL` and truncate tables between tests. Never point it
 at a shared database. The suite covers auth/bootstrap, project and member
 scoping, task rules, task editing, input validation, and the versioned routing
-surface.
+surface, including the idempotent demo seed.
 
 ## Migrations
 

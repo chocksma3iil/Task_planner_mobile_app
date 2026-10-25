@@ -33,6 +33,14 @@ CREATE_SCHEMA_ON_STARTUP = os.getenv(
     "false" if ENVIRONMENT == "production" else "true",
 ).strip().lower() in {"1", "true", "yes", "on"}
 
+# Local-development demo accounts/project/tasks. Never enable in production.
+SEED_DEMO_DATA = os.getenv("SEED_DEMO_DATA", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
 if not DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL is not set. Copy backend/.env.example to backend/.env "
@@ -41,3 +49,6 @@ if not DATABASE_URL:
 
 if ENVIRONMENT == "production" and SECRET_KEY == _DEV_SECRET:
     raise RuntimeError("Set a real SECRET_KEY before running in production.")
+
+if ENVIRONMENT == "production" and SEED_DEMO_DATA:
+    raise RuntimeError("SEED_DEMO_DATA must be false in production.")

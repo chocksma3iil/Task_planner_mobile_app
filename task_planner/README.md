@@ -76,10 +76,24 @@ On Windows you can run the desktop build directly:
 flutter run -d windows
 ```
 
-The first account you register becomes the admin (the server promotes the
-first account on a fresh database). Everyone after that joins a project as a
-pending member until the project owner or an admin confirms them. Passwords
-must be at least 8 characters; emails are case-insensitive.
+On an unseeded database, the first account you register becomes the admin (the
+server promotes the first account on a fresh database). Everyone after that
+joins a project as a pending member until the project owner or an admin
+confirms them. Passwords must be at least 8 characters; emails are
+case-insensitive.
+
+The Compose stack seeds demo accounts by default (`SEED_DEMO_DATA=true`). All
+use password `12345678`:
+
+| Email | Role |
+|---|---|
+| `admin@demo.local` | admin |
+| `manager@demo.local` | project owner |
+| `staff1@demo.local`–`staff3@demo.local` | user |
+
+The manager and staff belong to **Demo Project**. See
+[`../README.md`](../README.md) for the full demo data and how to disable
+seeding.
 
 ## Test and analyze
 
