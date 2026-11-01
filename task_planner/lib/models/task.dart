@@ -58,6 +58,76 @@ class Task {
   };
 }
 
+/// Paginated response for task lists.
+class TaskList {
+  const TaskList({
+    required this.items,
+    required this.total,
+    required this.limit,
+    required this.offset,
+  });
+
+  final List<Task> items;
+  final int total;
+  final int limit;
+  final int offset;
+
+  factory TaskList.fromJson(Map<String, dynamic> json) => TaskList(
+    items: (json['items'] as List)
+        .map((e) => Task.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    total: json['total'] as int,
+    limit: json['limit'] as int,
+    offset: json['offset'] as int,
+  );
+
+  bool get hasMore => offset + items.length < total;
+}
+
+/// One item in a bulk task action result.
+class BulkTaskItemResult {
+  const BulkTaskItemResult({
+    required this.taskId,
+    required this.success,
+    this.error,
+  });
+
+  final int taskId;
+  final bool success;
+  final String? error;
+
+  factory BulkTaskItemResult.fromJson(Map<String, dynamic> json) =>
+      BulkTaskItemResult(
+        taskId: json['task_id'] as int,
+        success: json['success'] as bool,
+        error: json['error'] as String?,
+      );
+}
+
+/// Envelope returned by the bulk complete/reassign/delete endpoints.
+class BulkTaskResult {
+  const BulkTaskResult({
+    required this.results,
+    required this.total,
+    required this.succeeded,
+    required this.failed,
+  });
+
+  final List<BulkTaskItemResult> results;
+  final int total;
+  final int succeeded;
+  final int failed;
+
+  factory BulkTaskResult.fromJson(Map<String, dynamic> json) => BulkTaskResult(
+    results: (json['results'] as List)
+        .map((e) => BulkTaskItemResult.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    total: json['total'] as int,
+    succeeded: json['succeeded'] as int,
+    failed: json['failed'] as int,
+  );
+}
+
 String? _dateOnly(DateTime? value) => value?.toIso8601String().split('T').first;
 
 DateTime? _parseDate(Object? raw) {

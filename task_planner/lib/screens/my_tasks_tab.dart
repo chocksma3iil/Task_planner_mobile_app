@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/rules.dart';
 import '../providers/data_providers.dart';
 import '../providers/session_providers.dart';
 import '../widgets/shared/error_state.dart';
@@ -27,9 +28,15 @@ class MyTasksTab extends ConsumerWidget {
         if (user.projectId == null) {
           return const Center(child: Text('No project assigned.'));
         }
-        return TaskList(
-          tasksProvider: myTasksProvider(user.id),
-          projectId: user.projectId,
+        return TaskListWidget(
+          tasksProvider: (ref) => ref.watch(myTasksProvider(user.id)),
+          projectId: user.projectId!,
+          assigneeId: user.id,
+          canMutate: !isViewer(user.role),
+          onLoadFirstPage: () async =>
+              ref.read(myTasksProvider(user.id).notifier).refresh(),
+          onLoadMore: () async =>
+              ref.read(myTasksProvider(user.id).notifier).loadMore(),
         );
       },
     );

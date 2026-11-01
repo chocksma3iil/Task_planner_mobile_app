@@ -10,14 +10,14 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
       child: Text(
         text,
         style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-          letterSpacing: 0.4,
-          color: scheme.primary,
+          fontWeight: FontWeight.w600,
+          fontSize: 11.5,
+          letterSpacing: 0.6,
+          color: scheme.onSurfaceVariant,
         ),
       ),
     );

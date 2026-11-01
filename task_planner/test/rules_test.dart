@@ -42,13 +42,13 @@ void main() {
   });
 
   group('roles', () {
-    test('admin sees all three tabs in order', () {
-      expect(visibleTabs(Roles.admin), ['projects', 'members', 'tasks']);
+    test('admin sees all five tabs in order', () {
+      expect(visibleTabs(Roles.admin), ['projects', 'members', 'tasks', 'planner', 'dashboard']);
     });
 
-    test('owner and user see members, tasks, and mine', () {
-      expect(visibleTabs(Roles.projectOwner), ['members', 'tasks', 'mine']);
-      expect(visibleTabs(Roles.user), ['members', 'tasks', 'mine']);
+    test('owner and user see members, tasks, mine, planner, and dashboard', () {
+      expect(visibleTabs(Roles.projectOwner), ['members', 'tasks', 'mine', 'planner', 'dashboard']);
+      expect(visibleTabs(Roles.user), ['members', 'tasks', 'mine', 'planner', 'dashboard']);
     });
 
     test('requireAdmin rejects non-admins', () {

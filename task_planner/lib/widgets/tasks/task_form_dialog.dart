@@ -11,6 +11,7 @@ class TaskDraft {
     this.description,
     this.dueDate,
     this.assigneeId,
+    this.subtasks = const [],
   });
 
   final String title;
@@ -18,17 +19,26 @@ class TaskDraft {
   final String priority;
   final DateTime? dueDate;
   final int? assigneeId;
+  final List<Map<String, dynamic>> subtasks;
 }
 
 /// Create/edit form for a task. Returns a [TaskDraft] when saved.
 class TaskFormDialog extends StatefulWidget {
-  const TaskFormDialog({super.key, required this.members, this.initial});
+  const TaskFormDialog({
+    super.key,
+    required this.members,
+    this.initial,
+    this.initialSubtasks = const [],
+  });
 
   /// Members of the task's project (the only valid person assignees).
   final List<Account> members;
 
   /// Existing task when editing; null when creating.
   final Task? initial;
+
+  /// Pre-existing subtasks when editing (loaded separately by the screen).
+  final List<Map<String, dynamic>> initialSubtasks;
 
   @override
   State<TaskFormDialog> createState() => _TaskFormDialogState();
@@ -41,6 +51,9 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   late DateTime? _dueDate;
   late int? _assigneeId;
   String? _titleError;
+  final List<Map<String, dynamic>> _subtasks = []; // {id, title, completed, sort_order, _deleted}
+  final TextEditingController _subtaskTitle = TextEditingController();
+  int _nextSortOrder = 0;
 
   @override
   void initState() {
@@ -51,13 +64,52 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     _priority = initial?.priority ?? 'medium';
     _dueDate = initial?.dueDate;
     _assigneeId = initial?.assigneeId;
+    _subtasks.addAll(
+      // Copy each map: the dialog edits them in place, and the caller keeps
+      // its own snapshot to diff against on save.
+      widget.initialSubtasks.map((s) => Map<String, dynamic>.of(s)),
+    );
+    _nextSortOrder = _subtasks.length;
   }
 
   @override
   void dispose() {
     _title.dispose();
     _description.dispose();
+    _subtaskTitle.dispose();
     super.dispose();
+  }
+
+  void _addSubtask() {
+    final title = _subtaskTitle.text.trim();
+    if (title.isEmpty) return;
+    setState(() {
+      _subtasks.add({
+        'id': null,
+        'title': title,
+        'completed': false,
+        'sort_order': _nextSortOrder++,
+        '_new': true,
+      });
+      _subtaskTitle.clear();
+    });
+  }
+
+  void _toggleSubtask(int index) {
+    setState(() {
+      _subtasks[index]['completed'] = !_subtasks[index]['completed'];
+    });
+  }
+
+  void _removeSubtask(int index) {
+    setState(() {
+      final s = _subtasks[index];
+      if (s['id'] != null) {
+        s['_deleted'] = true;
+      } else {
+        _subtasks.removeAt(index);
+      }
+    });
   }
 
   void _submit() {
@@ -74,6 +126,15 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
         priority: _priority,
         dueDate: _dueDate,
         assigneeId: _assigneeId,
+        subtasks: _subtasks
+            .where((s) => s['_deleted'] != true)
+            .map((s) => <String, dynamic>{
+                  'id': s['id'],
+                  'title': s['title'],
+                  'completed': s['completed'],
+                  'sort_order': s['sort_order'],
+                })
+            .toList(),
       ),
     );
   }
@@ -162,12 +223,69 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   ),
               ],
             ),
+            const SizedBox(height: 12),
+            // Subtask checklist.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Subtasks',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            for (final s in _subtasks)
+              if (s['_deleted'] != true)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: s['completed'],
+                        onChanged: (_) => _toggleSubtask(_subtasks.indexOf(s)),
+                      ),
+                      Expanded(
+                        child: Text(s['title']),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => _removeSubtask(_subtasks.indexOf(s)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _subtaskTitle,
+                    decoration: const InputDecoration(
+                      labelText: 'Add subtask',
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => _addSubtask(),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Add',
+                  icon: const Icon(Icons.add),
+                  onPressed: _addSubtask,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           child: const Text('Cancel'),
         ),
         FilledButton(

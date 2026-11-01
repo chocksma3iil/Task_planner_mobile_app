@@ -12,6 +12,8 @@ class ProjectCard extends StatelessWidget {
     required this.membersReady,
     required this.candidates,
     required this.onAssignOwner,
+    this.onArchive,
+    this.onRestore,
   });
 
   final Project project;
@@ -19,6 +21,8 @@ class ProjectCard extends StatelessWidget {
   final bool membersReady;
   final List<Account> candidates;
   final ValueChanged<int> onAssignOwner;
+  final VoidCallback? onArchive;
+  final VoidCallback? onRestore;
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +146,19 @@ class ProjectCard extends StatelessWidget {
                   ),
                 ),
                 _ownerMenu(context),
+                const SizedBox(width: 8),
+                if (project.status == 'active')
+                  FilledButton.icon(
+                    onPressed: onArchive,
+                    icon: const Icon(Icons.archive, size: 16),
+                    label: const Text('Archive'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: onRestore,
+                    icon: const Icon(Icons.unarchive, size: 16),
+                    label: const Text('Restore'),
+                  ),
               ],
             ),
           ],

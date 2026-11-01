@@ -4,11 +4,13 @@
 // in `lib/services/` enforce these rules against real rows; the checks here
 // are the single definition of each rule.
 
-// Roles (cumulative: admin > project owner > user).
+// Roles (cumulative: admin > project owner > team lead > user > viewer).
 abstract final class Roles {
   static const admin = 'admin';
   static const projectOwner = 'project_owner';
+  static const teamLead = 'team_lead';
   static const user = 'user';
+  static const viewer = 'viewer';
 }
 
 // Membership states.
@@ -43,15 +45,29 @@ bool isAdmin(String role) => role == Roles.admin;
 bool isOwnerOrAdmin(String role) =>
     role == Roles.admin || role == Roles.projectOwner;
 
+bool isViewer(String role) => role == Roles.viewer;
+
+bool isTeamLead(String role) => role == Roles.teamLead;
+
+/// Throws [StateError] unless [role] is not a viewer (i.e. can mutate).
+void requireCanMutate(String role) {
+  if (isViewer(role)) {
+    throw StateError('Viewers cannot make changes.');
+  }
+}
+
 /// Tabs visible for a role, in display order.
 ///
 /// Admins have no personal task list (they cannot be assignees); the
 /// "mine" tab is for project owners and users.
 List<String> visibleTabs(String role) {
   if (isAdmin(role)) {
-    return const ['projects', 'members', 'tasks'];
+    return const ['projects', 'members', 'tasks', 'planner', 'dashboard'];
   }
-  return const ['members', 'tasks', 'mine'];
+  if (isViewer(role)) {
+    return const ['members', 'tasks', 'mine'];
+  }
+  return const ['members', 'tasks', 'mine', 'planner', 'dashboard'];
 }
 
 /// Throws [StateError] unless [role] is admin.

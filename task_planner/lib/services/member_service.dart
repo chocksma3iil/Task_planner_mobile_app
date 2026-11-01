@@ -53,14 +53,24 @@ class MemberService {
     return Account.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Members visible to the caller: everyone for admins, own project
-  /// otherwise. A non-admin without a project gets a clear server error.
-  Stream<List<Account>> watchVisibleMembers() {
-    return watchFromApi(() async {
-      final json = await _client.get('/members') as List<dynamic>;
-      return json
-          .map((row) => Account.fromJson(row as Map<String, dynamic>))
-          .toList(growable: false);
-    });
+  /// One page of members visible to the caller: everyone for admins, own
+  /// project otherwise. A non-admin without a project gets a clear server
+  /// error.
+  Future<AccountList> fetchVisibleMembers({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final json = await _client.get(
+      '/members?limit=$limit&offset=$offset',
+    ) as Map<String, dynamic>;
+    return AccountList.fromJson(json);
+  }
+
+  /// Members visible to the caller, refreshed after every mutation.
+  Stream<AccountList> watchVisibleMembers({int page = 1, int pageSize = 20}) {
+    final offset = (page - 1) * pageSize;
+    return watchFromApi(
+      () => fetchVisibleMembers(limit: pageSize, offset: offset),
+    );
   }
 }

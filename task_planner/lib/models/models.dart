@@ -1,3 +1,9 @@
 export 'account.dart';
+export 'ai_proposal.dart';
+export 'analytics.dart';
+export 'audit_log_entry.dart';
+export 'comment.dart';
+export 'notification.dart';
 export 'project.dart';
+export 'subtask.dart';
 export 'task.dart';
