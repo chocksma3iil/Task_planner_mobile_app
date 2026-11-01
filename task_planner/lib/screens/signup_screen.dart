@@ -77,13 +77,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final projects = ref.watch(projectsProvider);
+    final projects = ref.watch(projectListProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Create an account')),
       body: projects.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Could not load projects: $e')),
-        data: (list) => _form(context, list),
+        data: (paginated) => _form(context, paginated.items),
       ),
     );
   }

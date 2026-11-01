@@ -22,21 +22,23 @@ class TaskFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        children: [
-          for (final entry in taskFilters.entries)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ChoiceChip(
-                label: Text(entry.value),
-                selected: selected == entry.key,
-                onSelected: (_) => onSelected(entry.key),
+    return Scrollbar(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            for (final entry in taskFilters.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ChoiceChip(
+                  label: Text(entry.value),
+                  selected: selected == entry.key,
+                  onSelected: (_) => onSelected(entry.key),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

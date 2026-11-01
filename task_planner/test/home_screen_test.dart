@@ -6,138 +6,11 @@ import 'package:task_planner/app/app.dart';
 import 'package:task_planner/models/models.dart';
 import 'package:task_planner/providers/api_providers.dart';
 import 'package:task_planner/providers/session_providers.dart';
-import 'package:task_planner/services/api_client.dart';
 
-/// In-memory stand-in for the FastAPI backend: serves the same JSON the
-/// real API returns, with the same member/task scoping rules.
-class FakeApiClient implements ApiClient {
-  Account? me;
-  final List<Project> projects = [];
-  final List<Account> members = [];
-  final List<Task> tasks = [];
+import 'support/fake_api_client.dart';
+import 'package:task_planner/widgets/members/member_card.dart';
 
-  @override
-  String get baseUrl => 'http://fake.test';
-
-  @override
-  void setToken(String token) {}
-
-  @override
-  void clearToken() {}
-
-  @override
-  Future<dynamic> get(String path) async {
-    if (path == '/auth/me') {
-      final account = me;
-      if (account == null) {
-        throw StateError('Not signed in.');
-      }
-      return account.toJson();
-    }
-    if (path == '/projects') {
-      return projects.map((p) => p.toJson()).toList();
-    }
-    if (path == '/members') {
-      return _visibleMembers().map((m) => m.toJson()).toList();
-    }
-    if (path.startsWith('/tasks?')) {
-      return _tasks(path).map((t) => t.toJson()).toList();
-    }
-    throw StateError('Unexpected GET $path');
-  }
-
-  @override
-  Future<dynamic> post(String path, [Map<String, dynamic>? body]) async {
-    throw StateError('Unexpected POST $path');
-  }
-
-  @override
-  Future<dynamic> patch(String path, [Map<String, dynamic>? body]) async {
-    final match = RegExp(r'^/tasks/(\d+)$').firstMatch(path);
-    if (match == null) {
-      throw StateError('Unexpected PATCH $path');
-    }
-    final id = int.parse(match.group(1)!);
-    final index = tasks.indexWhere((t) => t.id == id);
-    if (index == -1) {
-      throw StateError('Task not found.');
-    }
-    final current = tasks[index];
-    final data = body ?? const <String, dynamic>{};
-    final dueRaw = data['due_date'] as String?;
-    final updated = Task(
-      id: current.id,
-      title: (data['title'] as String?) ?? current.title,
-      description: data.containsKey('description')
-          ? data['description'] as String?
-          : current.description,
-      status: current.status,
-      priority: (data['priority'] as String?) ?? current.priority,
-      dueDate: data.containsKey('due_date')
-          ? (dueRaw == null ? null : DateTime.tryParse(dueRaw))
-          : current.dueDate,
-      projectId: current.projectId,
-      assigneeId: data.containsKey('assignee_id')
-          ? data['assignee_id'] as int?
-          : current.assigneeId,
-      createdAt: current.createdAt,
-      updatedAt: DateTime.now(),
-      completedAt: current.completedAt,
-    );
-    tasks[index] = updated;
-    return updated.toJson();
-  }
-
-  @override
-  Future<dynamic> delete(String path) async {
-    throw StateError('Unexpected DELETE $path');
-  }
-
-  List<Account> _visibleMembers() {
-    final viewer = me;
-    if (viewer == null) {
-      throw StateError('Not signed in.');
-    }
-    if (viewer.role == 'admin') {
-      return members;
-    }
-    if (viewer.projectId == null) {
-      throw StateError('Account has not been assigned to a project.');
-    }
-    return members
-        .where((m) => m.projectId == viewer.projectId)
-        .toList(growable: false);
-  }
-
-  List<Task> _tasks(String path) {
-    final uri = Uri.parse('http://fake.test$path');
-    final projectId = int.tryParse(uri.queryParameters['project_id'] ?? '');
-    final assigneeId = int.tryParse(uri.queryParameters['assignee_id'] ?? '');
-    if ((projectId == null) == (assigneeId == null)) {
-      throw StateError('Provide project_id or assignee_id.');
-    }
-    final viewer = me;
-    if (viewer == null) {
-      throw StateError('Not signed in.');
-    }
-    final List<Task> filtered;
-    if (projectId != null) {
-      if (viewer.role != 'admin' && viewer.projectId != projectId) {
-        throw StateError('You can only view your own project tasks.');
-      }
-      filtered = tasks.where((t) => t.projectId == projectId).toList();
-    } else {
-      filtered = tasks.where((t) => t.assigneeId == assigneeId).toList();
-    }
-    final sorted = List<Task>.of(filtered)
-      ..sort(
-        (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
-          a.createdAt ?? DateTime(2000),
-        ),
-      );
-    return sorted;
-  }
-}
+import 'support/app_harness.dart';
 
 /// Widget tests for the post-login shell: each role must see its tabs and
 /// data without stuck spinners, fake emptiness, or "Logged out." states.
@@ -210,13 +83,20 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester, admin);
+    await settle(tester);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('No members yet'), findsNothing);
     expect(find.text('Logged out.'), findsNothing);
 
     await tester.tap(find.text('Members'));
-    await tester.pump(const Duration(milliseconds: 400));
+    await settle(tester);
+    
+    // Debug: count MemberCards
+    final cardCount = tester.widgetList(find.byType(MemberCard)).length;
+    print('MEMBER CARD COUNT: $cardCount');
+    final bobCards = find.ancestor(of: find.text('Bob Builder'), matching: find.byType(MemberCard));
+    print('BOB CARDS: ${bobCards.evaluate().length}');
 
     expect(find.text('Root Admin'), findsWidgets);
     expect(find.text('Olive Owner'), findsWidgets);
@@ -231,7 +111,7 @@ void main() {
     (tester) async {
       await pumpApp(tester, owner);
 
-      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      expect(find.byType(NavigationDestination), findsNWidgets(5));
       expect(find.text('Projects'), findsNothing);
       expect(find.text('No members yet'), findsNothing);
       expect(find.text('Logged out.'), findsNothing);
@@ -247,7 +127,7 @@ void main() {
   ) async {
     await pumpApp(tester, user);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('Waiting for confirmation'), findsNothing);
     expect(find.text('Olive Owner'), findsWidgets);
     expect(find.text('Carol Guest'), findsWidgets);
@@ -357,5 +237,44 @@ void main() {
     expect(find.text('Assigned to Bob'), findsOneWidget);
     expect(find.text('Whole project task'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('admin has no personal Mine tab', (tester) async {
+    await pumpApp(tester, admin);
+
+    expect(find.text('Projects'), findsWidgets);
+    expect(find.text('Mine'), findsNothing);
+    expect(find.byTooltip('Add user'), findsNothing);
+  });
+
+  testWidgets('role changes made elsewhere refresh when the app resumes', (
+    tester,
+  ) async {
+    await pumpApp(tester, user);
+    expect(find.text('Planner'), findsOneWidget);
+
+    // The admin changes this account to viewer while the app is backgrounded.
+    api.me = const Account(
+      id: 3,
+      name: 'Bob Builder',
+      email: 'bob@example.com',
+      projectId: 1,
+      role: 'viewer',
+      status: 'active',
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Viewer tabs only, and the shell stays usable (no stale index).
+    expect(find.text('Planner'), findsNothing);
+    expect(find.text('Dashboard'), findsNothing);
+    expect(find.text('Mine'), findsOneWidget);
+    expect(find.text('Logged out.'), findsNothing);
   });
 }

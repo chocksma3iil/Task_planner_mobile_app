@@ -79,7 +79,7 @@ class _StatCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Material(
-        color: color.withValues(alpha: active ? 0.22 : 0.10),
+        color: color.withValues(alpha: active ? 0.30 : 0.15),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
