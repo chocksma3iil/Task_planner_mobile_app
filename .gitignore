@@ -23,3 +23,13 @@ backend/.env
 
 # Logs
 *.log
+
+# Exclude from GitHub (kept locally)
+.agents/
+.kilo/
+docs/
+screenshot/
+TEST_PLAN.md
+testing_strategy.md
+v23.md
+AGENTS.md
