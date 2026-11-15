@@ -16,10 +16,15 @@ const _apiBaseUrl = String.fromEnvironment(
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final apiClient = HttpApiClient(_apiBaseUrl);
+
+  // The saved token is restored and validated by TaskPlannerApp before the
+  // router leaves the splash screen.
   runApp(
     ProviderScope(
       overrides: [
-        apiClientProvider.overrideWithValue(HttpApiClient(_apiBaseUrl)),
+        apiClientProvider.overrideWithValue(apiClient),
       ],
       child: const TaskPlannerApp(),
     ),

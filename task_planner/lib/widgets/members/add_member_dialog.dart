@@ -20,8 +20,8 @@ class MemberDraft {
   final int? projectId;
 }
 
-/// Adds an active member directly. Admins choose the project; owners add
-/// plain users to their own project (the server enforces the scope).
+/// Adds an active member directly. Admins choose the project; owners and team
+/// leads add plain users to their own project (the server enforces the scope).
 class AddMemberDialog extends StatefulWidget {
   const AddMemberDialog({
     super.key,

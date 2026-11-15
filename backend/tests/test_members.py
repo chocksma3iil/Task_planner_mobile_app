@@ -51,7 +51,7 @@ def test_owner_creates_users_only_in_own_project(client):
     )
     assert wrong_project.status_code == 400
     assert wrong_project.json()["detail"] == (
-        "Owners can only add plain users to their project."
+        "Owners and team leads can only add plain users to their project."
     )
 
     # Denied: elevated role.
@@ -72,7 +72,7 @@ def test_owner_creates_users_only_in_own_project(client):
 def test_owner_confirms_pending_only_in_own_project(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    beta = client.get("/api/v1/projects").json()[-1]
+    beta = client.get("/api/v1/projects").json()["items"][-1]
     owner_headers = _owner_in_project(
         client, headers, project_a, "olive@example.com", "Olive"
     )
@@ -106,7 +106,7 @@ def test_plain_user_cannot_manage_members(client):
                          headers=user_headers)
     assert denied.status_code == 400
     assert denied.json()["detail"] == (
-        "Only a project owner or admin can do this."
+        "Only an owner, team lead, or admin can confirm members."
     )
 
 
@@ -153,7 +153,7 @@ def test_member_list_scoping(client):
     )
 
     admin_view = client.get("/api/v1/members", headers=headers)
-    assert {a["email"] for a in admin_view.json()} >= {
+    assert {a["email"] for a in admin_view.json()["items"]} >= {
         "root@example.com",
         "bob@example.com",
         "olive@example.com",
@@ -162,7 +162,7 @@ def test_member_list_scoping(client):
 
     owner_view = client.get("/api/v1/members", headers=owner_headers)
     # Admin (project_id null) and the orphan fall outside the owner's roster.
-    assert {a["email"] for a in owner_view.json()} == {
+    assert {a["email"] for a in owner_view.json()["items"]} == {
         "bob@example.com",
         "olive@example.com",
     }
@@ -173,3 +173,15 @@ def test_member_list_scoping(client):
     assert denied.json()["detail"] == (
         "Account has not been assigned to a project."
     )
+
+
+def test_member_list_is_paginated(client):
+    _, headers, project = bootstrap(client)
+    sign_up(client, "bob@example.com", name="Bob", project_id=project["id"])
+
+    body = client.get("/api/v1/members?limit=1&offset=1", headers=headers).json()
+    # Admin sees every account: root + bob.
+    assert body["total"] == 2
+    assert len(body["items"]) == 1
+    assert body["limit"] == 1
+    assert body["offset"] == 1

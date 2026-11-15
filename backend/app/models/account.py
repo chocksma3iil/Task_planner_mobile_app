@@ -26,6 +26,8 @@ class Assignee(Base):
     status: Mapped[str] = mapped_column(String(32), server_default="pending")
     # Plain id on purpose (no SQL self-FK): enforced in the service layer.
     approved_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Bumped on password reset so older JWTs stop working.
+    token_version: Mapped[int] = mapped_column(Integer, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now, server_default=func.now()
     )

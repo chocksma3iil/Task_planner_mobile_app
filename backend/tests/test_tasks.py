@@ -14,7 +14,7 @@ def _setup(client):
 def test_cross_project_assignment_rejected(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     outsider = sign_up(client, "eve@example.com", name="Eve",
                        project_id=project_b["id"])
     client.post(f"/api/v1/members/{outsider['id']}/confirm", headers=headers)
@@ -51,7 +51,7 @@ def test_pending_member_cannot_receive_tasks(client):
 def test_non_admin_cannot_create_in_another_project(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     member = sign_up(client, "bob@example.com", name="Bob",
                      project_id=project_a["id"])
     client.post(f"/api/v1/members/{member['id']}/confirm", headers=headers)
@@ -103,13 +103,13 @@ def test_delete_removes_task(client):
     remaining = client.get(
         f"/api/v1/tasks?project_id={project['id']}", headers=headers
     )
-    assert remaining.json() == []
+    assert remaining.json()["items"] == []
 
 
 def test_task_reads_are_scoped_and_validated(client):
     headers, project_a, member = _setup(client)
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     user_headers = auth_headers(client, "bob@example.com")
 
     # Missing / duplicated filters.
@@ -144,13 +144,13 @@ def test_mine_view_returns_only_assigned_tasks(client):
     )
 
     mine = client.get(f"/api/v1/tasks?assignee_id={member['id']}", headers=headers)
-    assert [t["title"] for t in mine.json()] == ["For Bob"]
+    assert [t["title"] for t in mine.json()["items"]] == ["For Bob"]
 
     as_owner = client.get(
         f"/api/v1/tasks?assignee_id={member['id']}",
         headers=auth_headers(client, "bob@example.com"),
     )
-    assert [t["title"] for t in as_owner.json()] == ["For Bob"]
+    assert [t["title"] for t in as_owner.json()["items"]] == ["For Bob"]
 
 
 def test_edit_task_updates_and_clears_optional_fields(client):
@@ -192,7 +192,7 @@ def test_edit_task_updates_and_clears_optional_fields(client):
 def test_edit_rejects_blank_title_and_invalid_assignee(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     outsider = sign_up(
         client, "eve@example.com", name="Eve", project_id=project_b["id"]
     )
@@ -242,7 +242,7 @@ def test_edit_requires_access_to_the_task_project(client):
     )
     client.post(f"/api/v1/members/{bob['id']}/confirm", headers=headers)
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     task_b = client.post(
         "/api/v1/tasks",
         json={"project_id": project_b["id"], "title": "Beta task"},
@@ -264,3 +264,23 @@ def test_edit_requires_access_to_the_task_project(client):
     )
     assert empty.status_code == 400
     assert empty.json()["detail"] == "Nothing to update."
+
+
+def test_task_list_is_paginated(client):
+    headers, project, _ = _setup(client)
+    for i in range(3):
+        client.post(
+            "/api/v1/tasks",
+            json={"project_id": project["id"], "title": f"T{i}"},
+            headers=headers,
+        )
+
+    body = client.get(
+        f"/api/v1/tasks?project_id={project['id']}&limit=2&offset=1",
+        headers=headers,
+    ).json()
+    assert body["total"] == 3
+    assert body["limit"] == 2
+    assert body["offset"] == 1
+    # Newest first: T2, T1, T0 — page two of two skips T2.
+    assert [t["title"] for t in body["items"]] == ["T1", "T0"]

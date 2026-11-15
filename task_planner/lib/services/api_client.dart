@@ -18,6 +18,11 @@ abstract class ApiClient {
 
   void clearToken();
 
+  /// Called once when an authenticated request is rejected with 401, so the
+  /// session layer can end the session and return to the login screen.
+  /// Requests without a token (login, sign-up) never trigger it.
+  void setUnauthorizedHandler(void Function()? handler);
+
   Future<dynamic> get(String path);
 
   Future<dynamic> post(String path, [Map<String, dynamic>? body]);
@@ -25,6 +30,9 @@ abstract class ApiClient {
   Future<dynamic> patch(String path, [Map<String, dynamic>? body]);
 
   Future<dynamic> delete(String path);
+
+  /// Raw response bytes (file downloads such as CSV/PDF exports).
+  Future<List<int>> getBytes(String path);
 }
 
 /// [ApiClient] built on `package:http`. Tests inject a fake client instead.
@@ -45,6 +53,7 @@ class HttpApiClient implements ApiClient {
   final Duration timeout;
   final http.Client _http;
   String? _token;
+  void Function()? _onUnauthorized;
 
   /// Current bearer token (null when logged out). Exposed for tests/state UI.
   String? get token => _token;
@@ -54,6 +63,10 @@ class HttpApiClient implements ApiClient {
 
   @override
   void clearToken() => _token = null;
+
+  @override
+  void setUnauthorizedHandler(void Function()? handler) =>
+      _onUnauthorized = handler;
 
   @override
   Future<dynamic> get(String path) => _request('GET', path);
@@ -69,12 +82,37 @@ class HttpApiClient implements ApiClient {
   @override
   Future<dynamic> delete(String path) => _request('DELETE', path);
 
+  @override
+  Future<List<int>> getBytes(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final hadToken = _token != null;
+    final headers = <String, String>{
+      if (_token != null) 'Authorization': 'Bearer $_token',
+    };
+    http.Response response;
+    try {
+      response = await _http.get(uri, headers: headers).timeout(timeout);
+    } on TimeoutException {
+      throw StateError(_offlineMessage);
+    } catch (_) {
+      throw StateError(_offlineMessage);
+    }
+    if (response.statusCode == 401 && hadToken) {
+      _onUnauthorized?.call();
+    }
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+    throw StateError('Download failed (HTTP ${response.statusCode}).');
+  }
+
   Future<dynamic> _request(
     String method,
     String path, {
     Map<String, dynamic>? body,
   }) async {
     final uri = Uri.parse('$baseUrl$path');
+    final hadToken = _token != null;
     final headers = <String, String>{
       'Content-Type': 'application/json',
       if (_token != null) 'Authorization': 'Bearer $_token',
@@ -98,10 +136,13 @@ class HttpApiClient implements ApiClient {
     } catch (_) {
       throw StateError(_offlineMessage);
     }
-    return _decode(response);
+    return _decode(response, hadToken: hadToken);
   }
 
-  dynamic _decode(http.Response response) {
+  dynamic _decode(http.Response response, {required bool hadToken}) {
+    if (response.statusCode == 401 && hadToken) {
+      _onUnauthorized?.call();
+    }
     dynamic decoded;
     if (response.body.isNotEmpty) {
       try {

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/session_providers.dart';
+import '../screens/audit_log_screen.dart';
+import '../screens/forgot_password_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/signup_screen.dart';
@@ -12,10 +14,14 @@ import '../screens/signup_screen.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ref.watch(sessionRefreshProvider);
   ref.listen(currentUserProvider, (_, _) => refresh.ping());
+  ref.listen(sessionReadyProvider, (_, _) => refresh.ping());
   final router = GoRouter(
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
+      if (!ref.read(sessionReadyProvider)) {
+        return state.matchedLocation == '/' ? null : '/';
+      }
       final user = ref.read(currentUserProvider);
       final location = state.matchedLocation;
       if (user.isLoading) {
@@ -23,16 +29,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       final account = user.value;
       if (account == null) {
-        return location == '/login' || location == '/signup' ? null : '/login';
+        return location == '/login' ||
+                location == '/signup' ||
+                location == '/forgot-password'
+            ? null
+            : '/login';
       }
       final atAuthPage =
-          location == '/' || location == '/login' || location == '/signup';
+          location == '/' ||
+          location == '/login' ||
+          location == '/signup' ||
+          location == '/forgot-password';
       return atAuthPage ? '/home' : null;
     },
     routes: [
       GoRoute(path: '/', builder: (_, _) => const _SplashScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, _) => const SignUpScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(path: '/audit-log', builder: (_, _) => const AuditLogScreen()),
       GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
     ],
   );

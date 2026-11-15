@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_planner/services/api_client.dart';
 import 'package:task_planner/services/auth_service.dart';
 
 /// Unit tests for the HTTP layer: status/detail mapping (StateError vs
 /// ArgumentError), token handling, and offline behavior.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   MockClient clientReturning(int status, Object? body) {
     return MockClient((request) async {
       return http.Response(
@@ -118,6 +120,61 @@ void main() {
       );
     });
 
+    test('timeout becomes the offline StateError', () async {
+      final client = HttpApiClient(
+        'http://api.test',
+        timeout: const Duration(milliseconds: 10),
+        httpClient: MockClient((_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          return http.Response('{}', 200);
+        }),
+      );
+      expect(
+        () => client.get('/projects'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Could not reach the server. Check that the API is running.',
+          ),
+        ),
+      );
+    });
+
+    test('unreadable JSON becomes a clear StateError', () async {
+      final client = HttpApiClient(
+        'http://api.test',
+        httpClient: MockClient((_) async => http.Response('<html>', 200)),
+      );
+      expect(
+        () => client.get('/projects'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'The server sent an unreadable response.',
+          ),
+        ),
+      );
+    });
+
+    test('an HTTP error without detail keeps the status code', () async {
+      final client = HttpApiClient(
+        'http://api.test',
+        httpClient: clientReturning(500, null),
+      );
+      expect(
+        () => client.get('/projects'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Request failed (HTTP 500).',
+          ),
+        ),
+      );
+    });
+
     test('sends the bearer token after setToken', () async {
       late String? seenAuth;
       final client = HttpApiClient(
@@ -134,10 +191,50 @@ void main() {
       await client.get('/auth/me');
       expect(seenAuth, isNull);
     });
+
+    test('401 on an authenticated request notifies the handler', () async {
+      var calls = 0;
+      final client = HttpApiClient(
+        'http://api.test',
+        httpClient: clientReturning(401, {
+          'detail': 'Invalid or expired token.',
+        }),
+      );
+      client.setUnauthorizedHandler(() => calls++);
+      client.setToken('expired-token');
+      await expectLater(
+        client.get('/members'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Invalid or expired token.',
+          ),
+        ),
+      );
+      expect(calls, 1);
+    });
+
+    test('401 without a token leaves the handler untouched', () async {
+      var calls = 0;
+      final client = HttpApiClient(
+        'http://api.test',
+        httpClient: clientReturning(401, {
+          'detail': 'Wrong email or password.',
+        }),
+      );
+      client.setUnauthorizedHandler(() => calls++);
+      await expectLater(
+        client.post('/auth/login', {'email': 'a', 'password': 'b'}),
+        throwsA(isA<StateError>()),
+      );
+      expect(calls, 0);
+    });
   });
 
   group('AuthService over HTTP', () {
     test('login stores the token and returns the account', () async {
+      SharedPreferences.setMockInitialValues({});
       final client = HttpApiClient(
         'http://api.test',
         httpClient: clientReturning(200, {

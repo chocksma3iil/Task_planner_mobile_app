@@ -20,9 +20,12 @@ def get_current_user(
     """Bearer-token auth dependency; raises 401 for missing/invalid tokens."""
     if credentials is None:
         raise UnauthorizedError("Not authenticated.")
-    user = db.get(Assignee, decode_token(credentials.credentials))
+    user_id, token_version = decode_token(credentials.credentials)
+    user = db.get(Assignee, user_id)
     if user is None:
         raise UnauthorizedError("Unknown account.")
+    if user.token_version != token_version:
+        raise UnauthorizedError("Invalid or expired token.")
     return user
 
 

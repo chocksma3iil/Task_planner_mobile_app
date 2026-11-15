@@ -41,6 +41,12 @@ SEED_DEMO_DATA = os.getenv("SEED_DEMO_DATA", "false").strip().lower() in {
     "on",
 }
 
+# Groq (OpenAI-compatible) API for AI proposals. The "Grok" feature name is
+# kept; the token provided is a Groq key (gsk_...), not an xAI key.
+GROK_API_KEY = os.getenv("GROK_API_KEY")
+GROK_API_BASE = os.getenv("GROK_API_BASE", "https://api.groq.com/openai/v1")
+GROK_MODEL = os.getenv("GROK_MODEL", "openai/gpt-oss-120b")
+
 if not DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL is not set. Copy backend/.env.example to backend/.env "

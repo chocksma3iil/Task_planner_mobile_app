@@ -36,14 +36,14 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         if (!isAdmin(user.role)) {
           return _content(context, user, adminProjects: null);
         }
-        final projects = ref.watch(projectsProvider);
+        final projects = ref.watch(projectListProvider);
         return projects.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ErrorState(
             message: 'Could not load projects: $e',
-            onRetry: () => ref.invalidate(projectsProvider),
+            onRetry: () => ref.invalidate(projectListProvider),
           ),
-          data: (list) => _content(context, user, adminProjects: list),
+          data: (paginated) => _content(context, user, adminProjects: paginated.items),
         );
       },
     );
@@ -83,10 +83,16 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         Expanded(
           child: effective == null
               ? const Center(child: Text('No project available.'))
-              : TaskList(
-                  tasksProvider: projectTasksProvider(effective),
-                  projectId: effective,
-                ),
+          : TaskListWidget(
+              tasksProvider: (ref) =>
+                  ref.watch(projectTasksProvider(effective!)),
+              projectId: effective,
+              canMutate: !isViewer(user.role),
+              onLoadFirstPage: () async =>
+                  ref.read(projectTasksProvider(effective!).notifier).refresh(),
+              onLoadMore: () async =>
+                  ref.read(projectTasksProvider(effective!).notifier).loadMore(),
+            ),
         ),
       ],
     );

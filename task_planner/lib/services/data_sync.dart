@@ -19,9 +19,51 @@ class DataSync {
 /// Emits [fetch]'s result immediately, then again after every [DataSync]
 /// ping. A failed fetch errors the stream; screens recover through their
 /// existing retry actions (provider invalidation resubscribes).
-Stream<T> watchFromApi<T>(Future<T> Function() fetch) async* {
-  yield await fetch();
-  await for (final _ in DataSync.instance.changes) {
-    yield await fetch();
+///
+/// Implemented with an explicit [StreamController] instead of an `async*`
+/// generator: cancelling an `async*` stream that is waiting on a broadcast
+/// stream never completes, which leaks subscriptions and hangs provider
+/// disposal.
+Stream<T> watchFromApi<T>(Future<T> Function() fetch) {
+  late final StreamController<T> controller;
+  StreamSubscription<void>? changes;
+  var cancelled = false;
+  var fetching = false;
+  var queued = false;
+
+  Future<void> refresh() async {
+    if (fetching) {
+      queued = true;
+      return;
+    }
+    fetching = true;
+    do {
+      queued = false;
+      try {
+        final value = await fetch();
+        if (!cancelled) {
+          controller.add(value);
+        }
+      } catch (error, stackTrace) {
+        if (!cancelled) {
+          controller.addError(error, stackTrace);
+        }
+        queued = false;
+      }
+    } while (queued && !cancelled);
+    fetching = false;
   }
+
+  controller = StreamController<T>(
+    onListen: () {
+      changes = DataSync.instance.changes.listen((_) => refresh());
+      refresh();
+    },
+    onCancel: () async {
+      cancelled = true;
+      await changes?.cancel();
+      changes = null;
+    },
+  );
+  return controller.stream;
 }

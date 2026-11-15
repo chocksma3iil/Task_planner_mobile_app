@@ -51,6 +51,32 @@ class Account {
   };
 }
 
+/// Paginated response for account lists.
+class AccountList {
+  const AccountList({
+    required this.items,
+    required this.total,
+    required this.limit,
+    required this.offset,
+  });
+
+  final List<Account> items;
+  final int total;
+  final int limit;
+  final int offset;
+
+  factory AccountList.fromJson(Map<String, dynamic> json) => AccountList(
+    items: (json['items'] as List)
+        .map((e) => Account.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    total: json['total'] as int,
+    limit: json['limit'] as int,
+    offset: json['offset'] as int,
+  );
+
+  bool get hasMore => offset + items.length < total;
+}
+
 DateTime? _parseDate(Object? raw) {
   if (raw is! String || raw.isEmpty) {
     return null;

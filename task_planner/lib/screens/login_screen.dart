@@ -29,6 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    ref.read(sessionNoticeProvider.notifier).set(null);
     setState(() {
       _error = null;
       _busy = true;
@@ -50,6 +51,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final notice = ref.watch(sessionNoticeProvider);
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -91,6 +93,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
+                    if (notice != null) ...[
+                      const SizedBox(height: 16),
+                      _NoticeBanner(message: notice),
+                    ],
                     const SizedBox(height: 28),
                     TextField(
                       controller: _email,
@@ -141,12 +147,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () => context.push('/signup'),
                       child: const Text('Create an account'),
                     ),
+                    TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: const Text('Forgot password?'),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NoticeBanner extends StatelessWidget {
+  const _NoticeBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: scheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: scheme.onSecondaryContainer,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

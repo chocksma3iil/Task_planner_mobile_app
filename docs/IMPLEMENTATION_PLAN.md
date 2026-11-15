@@ -101,8 +101,28 @@ staff accounts). See `docs/decisions/2026-10-25-demo-seed-data.md`.
 - Verify: backend `pytest` 34/34; live Compose startup seeded the demo rows
   without modifying the existing local accounts, project, or task.
 
+## v2.0 API integration (done 2026-11-15)
+
+Approved in conversation ("integrate them and make an E2E review for overall
+feature"). See `docs/decisions/2026-11-15-v2-api-integration.md`.
+
+- Alembic `0002_v2_collaboration`: comments, subtasks, notifications,
+  analytics/audit events, password resets, `projects.ai_opt_in`, and
+  `assignees.token_version`.
+- Added the client's remaining endpoints: comments, subtasks, notifications,
+  dashboard, audit logs, bulk task actions, archive/restore, AI opt-in, CSV/PDF
+  exports, forgot/reset password, and `/ai/*` proposals.
+- Roles extended to `team_lead` (own-project member management) and `viewer`
+  (server-enforced read-only).
+- Notifications are generated in-app; audit actions match the client labels;
+  reports are generated without new dependencies.
+- Verify: backend `pytest` 51/51; live Compose E2E (login through reports,
+  archive/restore, notifications, AI gate); `flutter analyze` 0 errors;
+  `flutter test` 114/114 (no Flutter changes required).
+
 ## Next (not approved)
 
-- Notifications, backup/restore.
+- Local notifications and backup/restore.
+- Real email delivery for reset codes; real AI provider integration.
 - Deployment: hosting choice, HTTPS, CORS allow-list, backups.
 - Shared development MySQL/phpMyAdmin provisioning and access policy.

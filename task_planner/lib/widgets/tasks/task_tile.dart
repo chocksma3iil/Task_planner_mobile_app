@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/formatters.dart';
 import '../../core/rules.dart';
 import '../../models/models.dart';
-import 'priority_chip.dart';
+import '../shared/priority_chip.dart';
 import 'swipe_background.dart';
 
 /// One task row: checkbox, title, priority, due date, assignee, and swipe
@@ -17,6 +17,9 @@ class TaskTile extends StatelessWidget {
     required this.onDelete,
     required this.onSwipe,
     required this.onTap,
+    this.canMutate = true,
+    this.isSelected = false,
+    this.onComment,
   });
 
   final Task task;
@@ -25,6 +28,9 @@ class TaskTile extends StatelessWidget {
   final VoidCallback onDelete;
   final Future<bool> Function(DismissDirection direction) onSwipe;
   final VoidCallback onTap;
+  final bool canMutate;
+  final bool isSelected;
+  final VoidCallback? onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -38,17 +44,25 @@ class TaskTile extends StatelessWidget {
     return Dismissible(
       key: ValueKey('task-${task.id}'),
       direction: DismissDirection.horizontal,
-      confirmDismiss: onSwipe,
+      confirmDismiss: canMutate
+          ? (direction) => onSwipe(direction)
+          : (_) async => false,
       background: SwipeBackground(start: true, done: done),
       secondaryBackground: SwipeBackground(start: false, done: done),
       child: Card(
+        color: isSelected ? scheme.primary.withValues(alpha: 0.08) : null,
         child: InkWell(
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Checkbox(value: done, onChanged: (_) => onToggle()),
+                Checkbox(
+                  value: done,
+                  onChanged: canMutate ? (_) => onToggle() : null,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,7 +77,9 @@ class TaskTile extends StatelessWidget {
                                 decoration: done
                                     ? TextDecoration.lineThrough
                                     : null,
-                                color: done ? scheme.onSurfaceVariant : null,
+                                color: done
+                                    ? scheme.onSurfaceVariant
+                                    : scheme.onSurface,
                               ),
                             ),
                           ),
@@ -101,6 +117,15 @@ class TaskTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onComment != null)
+                  IconButton(
+                    tooltip: 'Comments',
+                    icon: Icon(
+                      Icons.comment_outlined,
+                      color: scheme.outline,
+                    ),
+                    onPressed: onComment,
+                  ),
                 IconButton(
                   tooltip: 'Delete',
                   icon: Icon(Icons.delete_outline, color: scheme.outline),
@@ -133,7 +158,14 @@ class _MetaIcon extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12.5, color: color)),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12.5, color: color),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ],
     );
   }

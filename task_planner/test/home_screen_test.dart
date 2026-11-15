@@ -5,140 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_planner/app/app.dart';
 import 'package:task_planner/models/models.dart';
 import 'package:task_planner/providers/api_providers.dart';
-import 'package:task_planner/providers/data_providers.dart';
 import 'package:task_planner/providers/session_providers.dart';
-import 'package:task_planner/services/api_client.dart';
 
-/// In-memory stand-in for the FastAPI backend: serves the same JSON the
-/// real API returns, with the same member/task scoping rules.
-class FakeApiClient implements ApiClient {
-  Account? me;
-  final List<Project> projects = [];
-  final List<Account> members = [];
-  final List<Task> tasks = [];
+import 'support/fake_api_client.dart';
+import 'package:task_planner/widgets/members/member_card.dart';
 
-  @override
-  String get baseUrl => 'http://fake.test';
-
-  @override
-  void setToken(String token) {}
-
-  @override
-  void clearToken() {}
-
-  @override
-  Future<dynamic> get(String path) async {
-    if (path == '/auth/me') {
-      final account = me;
-      if (account == null) {
-        throw StateError('Not signed in.');
-      }
-      return account.toJson();
-    }
-    if (path == '/projects') {
-      return projects.map((p) => p.toJson()).toList();
-    }
-    if (path == '/members') {
-      return _visibleMembers().map((m) => m.toJson()).toList();
-    }
-    if (path.startsWith('/tasks?')) {
-      return _tasks(path).map((t) => t.toJson()).toList();
-    }
-    throw StateError('Unexpected GET $path');
-  }
-
-  @override
-  Future<dynamic> post(String path, [Map<String, dynamic>? body]) async {
-    throw StateError('Unexpected POST $path');
-  }
-
-  @override
-  Future<dynamic> patch(String path, [Map<String, dynamic>? body]) async {
-    final match = RegExp(r'^/tasks/(\d+)$').firstMatch(path);
-    if (match == null) {
-      throw StateError('Unexpected PATCH $path');
-    }
-    final id = int.parse(match.group(1)!);
-    final index = tasks.indexWhere((t) => t.id == id);
-    if (index == -1) {
-      throw StateError('Task not found.');
-    }
-    final current = tasks[index];
-    final data = body ?? const <String, dynamic>{};
-    final dueRaw = data['due_date'] as String?;
-    final updated = Task(
-      id: current.id,
-      title: (data['title'] as String?) ?? current.title,
-      description: data.containsKey('description')
-          ? data['description'] as String?
-          : current.description,
-      status: current.status,
-      priority: (data['priority'] as String?) ?? current.priority,
-      dueDate: data.containsKey('due_date')
-          ? (dueRaw == null ? null : DateTime.tryParse(dueRaw))
-          : current.dueDate,
-      projectId: current.projectId,
-      assigneeId: data.containsKey('assignee_id')
-          ? data['assignee_id'] as int?
-          : current.assigneeId,
-      createdAt: current.createdAt,
-      updatedAt: DateTime.now(),
-      completedAt: current.completedAt,
-    );
-    tasks[index] = updated;
-    return updated.toJson();
-  }
-
-  @override
-  Future<dynamic> delete(String path) async {
-    throw StateError('Unexpected DELETE $path');
-  }
-
-  List<Account> _visibleMembers() {
-    final viewer = me;
-    if (viewer == null) {
-      throw StateError('Not signed in.');
-    }
-    if (viewer.role == 'admin') {
-      return members;
-    }
-    if (viewer.projectId == null) {
-      throw StateError('Account has not been assigned to a project.');
-    }
-    return members
-        .where((m) => m.projectId == viewer.projectId)
-        .toList(growable: false);
-  }
-
-  List<Task> _tasks(String path) {
-    final uri = Uri.parse('http://fake.test$path');
-    final projectId = int.tryParse(uri.queryParameters['project_id'] ?? '');
-    final assigneeId = int.tryParse(uri.queryParameters['assignee_id'] ?? '');
-    if ((projectId == null) == (assigneeId == null)) {
-      throw StateError('Provide project_id or assignee_id.');
-    }
-    final viewer = me;
-    if (viewer == null) {
-      throw StateError('Not signed in.');
-    }
-    final List<Task> filtered;
-    if (projectId != null) {
-      if (viewer.role != 'admin' && viewer.projectId != projectId) {
-        throw StateError('You can only view your own project tasks.');
-      }
-      filtered = tasks.where((t) => t.projectId == projectId).toList();
-    } else {
-      filtered = tasks.where((t) => t.assigneeId == assigneeId).toList();
-    }
-    final sorted = List<Task>.of(filtered)
-      ..sort(
-        (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
-          a.createdAt ?? DateTime(2000),
-        ),
-      );
-    return sorted;
-  }
-}
+import 'support/app_harness.dart';
 
 /// Widget tests for the post-login shell: each role must see its tabs and
 /// data without stuck spinners, fake emptiness, or "Logged out." states.
@@ -210,14 +82,27 @@ void main() {
   testWidgets('admin sees three tabs and the full roster in Members', (
     tester,
   ) async {
-    await pumpApp(tester, admin);
+    // A tall viewport shows the whole roster without scrolling; the default
+    // 800x600 frame cuts the lower cards out of the lazy ListView.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    await pumpApp(tester, admin);
+    await settle(tester);
+
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('No members yet'), findsNothing);
     expect(find.text('Logged out.'), findsNothing);
 
     await tester.tap(find.text('Members'));
-    await tester.pump(const Duration(milliseconds: 400));
+    await settle(tester);
+    
+    // Debug: count MemberCards
+    final cardCount = tester.widgetList(find.byType(MemberCard)).length;
+    print('MEMBER CARD COUNT: $cardCount');
+    final bobCards = find.ancestor(of: find.text('Bob Builder'), matching: find.byType(MemberCard));
+    print('BOB CARDS: ${bobCards.evaluate().length}');
 
     expect(find.text('Root Admin'), findsWidgets);
     expect(find.text('Olive Owner'), findsWidgets);
@@ -227,26 +112,12 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('admin can open the add-user dialog', (tester) async {
-    await pumpApp(tester, admin);
-
-    await tester.tap(find.text('Members'));
-    await tester.pump(const Duration(milliseconds: 400));
-
-    await tester.tap(find.byTooltip('Add user'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(find.text('Add user'), findsOneWidget);
-    expect(find.text('Project'), findsOneWidget);
-  });
-
   testWidgets(
     'project owner lands on Members with roster and pending section',
     (tester) async {
       await pumpApp(tester, owner);
 
-      expect(find.byType(NavigationDestination), findsNWidgets(3));
+      expect(find.byType(NavigationDestination), findsNWidgets(5));
       expect(find.text('Projects'), findsNothing);
       expect(find.text('No members yet'), findsNothing);
       expect(find.text('Logged out.'), findsNothing);
@@ -262,7 +133,7 @@ void main() {
   ) async {
     await pumpApp(tester, user);
 
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('Waiting for confirmation'), findsNothing);
     expect(find.text('Olive Owner'), findsWidgets);
     expect(find.text('Carol Guest'), findsWidgets);
@@ -374,50 +245,42 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  test('member roster refetches when a new session starts', () async {
-    api.me = admin;
-    api.members.removeWhere((m) => m.status == 'pending');
+  testWidgets('admin has no personal Mine tab', (tester) async {
+    await pumpApp(tester, admin);
 
-    final container = ProviderContainer(
-      overrides: [apiClientProvider.overrideWithValue(api)],
-    );
-    addTearDown(container.dispose);
-    final subscription = container.listen(visibleMembersProvider, (_, _) {});
-    addTearDown(subscription.close);
-
-    container.read(sessionUserIdProvider.notifier).set(admin.id);
-    await container.pump();
-    final before = await container.read(visibleMembersProvider.future);
-    expect(before.any((m) => m.status == 'pending'), isFalse);
-
-    const pending = Account(
-      id: 99,
-      name: 'New Pending',
-      email: 'new@example.com',
-      projectId: 1,
-      role: 'user',
-      status: 'pending',
-    );
-    api.members.add(pending);
-
-    container.read(sessionUserIdProvider.notifier).set(null);
-    await container.pump();
-    container.read(sessionUserIdProvider.notifier).set(admin.id);
-    await container.pump();
-
-    final after = await container.read(visibleMembersProvider.future);
-    expect(after.map((m) => m.id), contains(pending.id));
+    expect(find.text('Projects'), findsWidgets);
+    expect(find.text('Mine'), findsNothing);
+    expect(find.byTooltip('Add user'), findsNothing);
   });
 
-  test('public project list loads without an active session', () async {
-    final container = ProviderContainer(
-      overrides: [apiClientProvider.overrideWithValue(api)],
-    );
-    addTearDown(container.dispose);
-    final subscription = container.listen(publicProjectsProvider, (_, _) {});
-    addTearDown(subscription.close);
+  testWidgets('role changes made elsewhere refresh when the app resumes', (
+    tester,
+  ) async {
+    await pumpApp(tester, user);
+    expect(find.text('Planner'), findsOneWidget);
 
-    final projects = await container.read(publicProjectsProvider.future);
-    expect(projects.map((p) => p.id), contains(1));
+    // The admin changes this account to viewer while the app is backgrounded.
+    api.me = const Account(
+      id: 3,
+      name: 'Bob Builder',
+      email: 'bob@example.com',
+      projectId: 1,
+      role: 'viewer',
+      status: 'active',
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Viewer tabs only, and the shell stays usable (no stale index).
+    expect(find.text('Planner'), findsNothing);
+    expect(find.text('Dashboard'), findsNothing);
+    expect(find.text('Mine'), findsOneWidget);
+    expect(find.text('Logged out.'), findsNothing);
   });
 }

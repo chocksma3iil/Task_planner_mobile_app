@@ -7,10 +7,14 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 if not os.environ.get("TEST_DATABASE_URL"):
     raise RuntimeError(
-        "TEST_DATABASE_URL is missing â€” copy backend/.env.example to backend/.env."
+        "TEST_DATABASE_URL is missing. Copy backend/.env.example to "
+        "backend/.env and fill in the MySQL connection."
     )
 # Force the app (imported below) onto the test database.
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+# Keep AI tests deterministic: force the offline fallback proposals instead
+# of calling the live Grok API.
+os.environ["GROK_API_KEY"] = ""
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

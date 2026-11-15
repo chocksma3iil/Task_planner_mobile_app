@@ -71,21 +71,71 @@ class TaskService {
     DataSync.instance.ping();
   }
 
-  /// Tasks of one project, newest first.
-  Stream<List<Task>> watchProjectTasks(int projectId) =>
-      _watch('/tasks?project_id=$projectId');
-
-  /// Tasks assigned to one person, newest first.
-  Stream<List<Task>> watchTasksAssignedTo(int assigneeId) =>
-      _watch('/tasks?assignee_id=$assigneeId');
-
-  Stream<List<Task>> _watch(String path) {
-    return watchFromApi(() async {
-      final json = await _client.get(path) as List<dynamic>;
-      return json
-          .map((row) => Task.fromJson(row as Map<String, dynamic>))
-          .toList(growable: false);
+  /// Marks every selected task completed. The server returns one result per
+  /// task so a partial failure never hides the successful rows.
+  Future<BulkTaskResult> bulkCompleteTasks({required List<int> taskIds}) async {
+    final json = await _client.post('/tasks/bulk/complete', {
+      'task_ids': taskIds,
     });
+    DataSync.instance.ping();
+    return BulkTaskResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Reassigns every selected task to one active member of its project.
+  Future<BulkTaskResult> bulkReassignTasks({
+    required List<int> taskIds,
+    required int newAssigneeId,
+  }) async {
+    final json = await _client.post('/tasks/bulk/reassign', {
+      'task_ids': taskIds,
+      'assignee_id': newAssigneeId,
+    });
+    DataSync.instance.ping();
+    return BulkTaskResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Deletes every selected task.
+  Future<BulkTaskResult> bulkDeleteTasks({required List<int> taskIds}) async {
+    final json = await _client.post('/tasks/bulk/delete', {
+      'task_ids': taskIds,
+    });
+    DataSync.instance.ping();
+    return BulkTaskResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// One page of a project's tasks, newest first.
+  Future<TaskList> fetchProjectTasks(
+    int projectId, {
+    int limit = 20,
+    int offset = 0,
+  }) => _fetch('/tasks?project_id=$projectId&limit=$limit&offset=$offset');
+
+  /// One page of one person's tasks, newest first.
+  Future<TaskList> fetchTasksAssignedTo(
+    int assigneeId, {
+    int limit = 20,
+    int offset = 0,
+  }) => _fetch('/tasks?assignee_id=$assigneeId&limit=$limit&offset=$offset');
+
+  /// Tasks of one project, refreshed after every mutation.
+  Stream<TaskList> watchProjectTasks(int projectId, {int page = 1, int pageSize = 20}) =>
+      watchFromApi(() => fetchProjectTasks(
+            projectId,
+            limit: pageSize,
+            offset: (page - 1) * pageSize,
+          ));
+
+  /// Tasks assigned to one person, refreshed after every mutation.
+  Stream<TaskList> watchTasksAssignedTo(int assigneeId, {int page = 1, int pageSize = 20}) =>
+      watchFromApi(() => fetchTasksAssignedTo(
+            assigneeId,
+            limit: pageSize,
+            offset: (page - 1) * pageSize,
+          ));
+
+  Future<TaskList> _fetch(String path) async {
+    final json = await _client.get(path) as Map<String, dynamic>;
+    return TaskList.fromJson(json);
   }
 }
 

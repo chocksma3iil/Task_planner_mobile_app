@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .common import Email, Position, RequiredText, UtcDateTime
 
-Role = Literal["admin", "project_owner", "user"]
+Role = Literal["admin", "project_owner", "team_lead", "user", "viewer"]
 
 
 class AccountOut(BaseModel):
@@ -52,3 +52,18 @@ class MemberIn(BaseModel):
 
 class RoleIn(BaseModel):
     role: Role
+
+
+class ForgotPasswordIn(BaseModel):
+    email: Email
+
+
+class ResetPasswordIn(BaseModel):
+    email: Email
+    code: RequiredText
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class MessageOut(BaseModel):
+    message: str
+    dev_code: str | None = None

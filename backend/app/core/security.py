@@ -21,18 +21,19 @@ def verify_password(raw: str, hashed: str) -> bool:
         return False
 
 
-def create_token(user_id: int) -> str:
+def create_token(user_id: int, version: int = 0) -> str:
     payload = {
         "sub": str(user_id),
+        "ver": version,
         "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_TTL_DAYS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_token(token: str) -> int:
-    """Return the account id in [token], or raise UnauthorizedError."""
+def decode_token(token: str) -> tuple[int, int]:
+    """Return `(account id, token version)` or raise UnauthorizedError."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return int(payload["sub"])
-    except (jwt.PyJWTError, KeyError, ValueError) as e:
+        return int(payload["sub"]), int(payload.get("ver", 0))
+    except (jwt.PyJWTError, KeyError, ValueError, TypeError) as e:
         raise UnauthorizedError("Invalid or expired token.") from e

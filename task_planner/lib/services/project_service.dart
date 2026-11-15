@@ -32,14 +32,47 @@ class ProjectService {
     return Project.fromJson(json as Map<String, dynamic>);
   }
 
-  /// All projects, sorted by name. The API list is public so the sign-up
-  /// screen can offer projects before login.
-  Stream<List<Project>> watchProjects() {
-    return watchFromApi(() async {
-      final json = await _client.get('/projects') as List<dynamic>;
-      return json
-          .map((row) => Project.fromJson(row as Map<String, dynamic>))
-          .toList(growable: false);
-    });
+  Future<Project> archiveProject({required int projectId}) async {
+    final json = await _client.patch('/projects/$projectId/archive');
+    DataSync.instance.ping();
+    return Project.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<Project> restoreProject({required int projectId}) async {
+    final json = await _client.patch('/projects/$projectId/restore');
+    DataSync.instance.ping();
+    return Project.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// One page of projects, sorted by name. The API list is public so the
+  /// sign-up screen can offer projects before login. Set [includeArchived]
+  /// to also return archived projects.
+  Future<ProjectList> fetchProjects({
+    int limit = 20,
+    int offset = 0,
+    bool includeArchived = true,
+  }) async {
+    final json = await _client.get(
+      '/projects?limit=$limit&offset=$offset'
+      '${includeArchived ? '&include_archived=true' : ''}',
+    ) as Map<String, dynamic>;
+    return ProjectList.fromJson(json);
+  }
+
+  /// All projects, refreshed after every mutation. Kept for callers that only
+  /// need the first page as a stream.
+  Stream<ProjectList> watchProjects({
+    int page = 1,
+    int pageSize = 20,
+    bool includeArchived = true,
+  }) {
+    final offset = (page - 1) * pageSize;
+    return watchFromApi(
+      () => fetchProjects(
+        limit: pageSize,
+        offset: offset,
+        includeArchived: includeArchived,
+      ),
+    );
   }
 }

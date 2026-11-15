@@ -4,6 +4,13 @@
 > is online-only; the offline-first constraints below are superseded. See
 > `docs/decisions/2026-10-21-fastapi-mysql-backend.md`. Task editing remains a
 > required MVP feature.
+>
+> **Amended 2026-11-15:** the v2.0 client features were implemented server-side
+> (comments, subtasks, in-app notifications, analytics, audit, bulk actions,
+> project archive/restore, CSV/PDF reports, password reset, opt-in AI
+> proposals). Roles now include `team_lead` (own-project member management) and
+> `viewer` (read-only). See
+> `docs/decisions/2026-11-15-v2-api-integration.md`.
 
 ## 1. Project Goal
 
