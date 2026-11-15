@@ -72,53 +72,64 @@ class MemberCard extends StatelessWidget {
           ],
         ],
       ),
-      subtitle: Text(
-        [
-          if (member.position != null) member.position!,
-          member.email,
-        ].join(' · '),
-        style: TextStyle(
-          fontSize: 13,
-          color: scheme.onSurfaceVariant,
-        ),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-      trailing: Row(
+      // Role chip, role menu, and confirm action live on their own line so
+      // the trailing area never starves the title on narrow screens.
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showRole)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(radiusChip),
-              ),
-              child: Text(
-                member.role,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
+          Text(
+            [
+              if (member.position != null) member.position!,
+              member.email,
+            ].join(' · '),
+            style: TextStyle(
+              fontSize: 13,
+              color: scheme.onSurfaceVariant,
             ),
-          if (canChangeRole)
-            IconButton(
-              tooltip: 'Change role',
-              icon: const Icon(Icons.more_vert, size: 20),
-              onPressed: onRoleChangePressed,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+          if (showRole || canChangeRole || canConfirm) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (showRole)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(radiusChip),
+                    ),
+                    child: Text(
+                      member.role,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                if (canChangeRole)
+                  IconButton(
+                    tooltip: 'Change role',
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onPressed: onRoleChangePressed,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                if (canConfirm)
+                  FilledButton.tonal(
+                    onPressed: onConfirm,
+                    child: const Text('Confirm'),
+                  ),
+              ],
             ),
-          if (canConfirm)
-            FilledButton.tonal(
-              onPressed: onConfirm,
-              child: const Text('Confirm'),
-            ),
+          ],
         ],
       ),
     );

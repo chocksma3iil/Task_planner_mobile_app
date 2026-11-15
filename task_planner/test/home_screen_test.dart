@@ -82,6 +82,12 @@ void main() {
   testWidgets('admin sees three tabs and the full roster in Members', (
     tester,
   ) async {
+    // A tall viewport shows the whole roster without scrolling; the default
+    // 800x600 frame cuts the lower cards out of the lazy ListView.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     await pumpApp(tester, admin);
     await settle(tester);
 

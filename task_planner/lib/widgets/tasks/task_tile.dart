@@ -60,7 +60,7 @@ class TaskTile extends StatelessWidget {
               children: [
                 Checkbox(
                   value: done,
-                  onChanged: (_) => onToggle(),
+                  onChanged: canMutate ? (_) => onToggle() : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -117,6 +117,15 @@ class TaskTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onComment != null)
+                  IconButton(
+                    tooltip: 'Comments',
+                    icon: Icon(
+                      Icons.comment_outlined,
+                      color: scheme.outline,
+                    ),
+                    onPressed: onComment,
+                  ),
                 IconButton(
                   tooltip: 'Delete',
                   icon: Icon(Icons.delete_outline, color: scheme.outline),
@@ -149,7 +158,14 @@ class _MetaIcon extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12.5, color: color)),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 12.5, color: color),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ],
     );
   }

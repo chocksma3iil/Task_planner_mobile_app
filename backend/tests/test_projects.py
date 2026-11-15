@@ -4,9 +4,22 @@ from helpers import auth_headers, bootstrap, sign_up
 
 def test_project_list_is_public(client):
     bootstrap(client)
-    response = client.get("/api/v1/projects")  # no token â€” sign-up screen needs this
+    response = client.get("/api/v1/projects")  # no token — sign-up screen needs this
     assert response.status_code == 200
-    assert [p["name"] for p in response.json()] == ["Alpha"]
+    assert [p["name"] for p in response.json()["items"]] == ["Alpha"]
+
+
+def test_project_list_is_paginated(client):
+    _, headers, _ = bootstrap(client)
+    for name in ("Beta", "Delta", "Gamma"):
+        client.post("/api/v1/projects", json={"name": name}, headers=headers)
+
+    body = client.get("/api/v1/projects?limit=2&offset=2").json()
+    # Sorted by name: Alpha, Beta, Delta, Gamma.
+    assert body["total"] == 4
+    assert body["limit"] == 2
+    assert body["offset"] == 2
+    assert [p["name"] for p in body["items"]] == ["Delta", "Gamma"]
 
 
 def test_only_admin_creates_projects(client):

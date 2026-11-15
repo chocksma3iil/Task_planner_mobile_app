@@ -4,11 +4,13 @@ The server is the enforcer; the Dart copy stays as a UX-side check only.
 """
 from .errors import AssignmentError, RuleError
 
-# Roles (cumulative: admin > project owner > user).
+# Roles (cumulative: admin > project owner > team lead > user > viewer).
 ADMIN = "admin"
 PROJECT_OWNER = "project_owner"
+TEAM_LEAD = "team_lead"
 USER = "user"
-ROLES = (ADMIN, PROJECT_OWNER, USER)
+VIEWER = "viewer"
+ROLES = (ADMIN, PROJECT_OWNER, TEAM_LEAD, USER, VIEWER)
 
 # Membership states.
 PENDING = "pending"
@@ -31,6 +33,25 @@ def is_admin(role: str) -> bool:
 
 def is_owner_or_admin(role: str) -> bool:
     return role in (ADMIN, PROJECT_OWNER)
+
+
+def is_team_lead(role: str) -> bool:
+    return role == TEAM_LEAD
+
+
+def can_mutate(role: str) -> bool:
+    """Viewers are read-only; every other role can change project data."""
+    return role != VIEWER
+
+
+def require_can_mutate(role: str) -> None:
+    if not can_mutate(role):
+        raise RuleError("Viewers cannot make changes.")
+
+
+def can_confirm_members(role: str) -> bool:
+    """Owners, admins, and team leads may confirm pending members."""
+    return role in (ADMIN, PROJECT_OWNER, TEAM_LEAD)
 
 
 def require_admin(role: str) -> None:

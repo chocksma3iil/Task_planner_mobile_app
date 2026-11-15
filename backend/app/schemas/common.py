@@ -1,8 +1,19 @@
-"""Shared schema types: normalized text and UTC serialization."""
+"""Shared schema types: normalized text, UTC serialization, pagination."""
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Generic, TypeVar
 
-from pydantic import AfterValidator, Field, PlainSerializer
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer
+
+ItemT = TypeVar("ItemT")
+
+
+class Page(BaseModel, Generic[ItemT]):
+    """Paginated list envelope: `{"items": [...], "total", "limit", "offset}`."""
+
+    items: list[ItemT]
+    total: int
+    limit: int
+    offset: int
 
 
 def _normalize_email(value: str) -> str:

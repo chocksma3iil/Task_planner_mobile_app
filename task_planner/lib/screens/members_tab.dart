@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/formatters.dart';
 import '../core/rules.dart';
 import '../models/models.dart';
 import '../providers/data_providers.dart';
 import '../providers/session_providers.dart';
 import '../widgets/members/add_member_dialog.dart';
+import '../widgets/members/member_card.dart';
 import '../widgets/shared/app_snackbar.dart';
 import '../widgets/shared/empty_state.dart';
 import '../widgets/shared/error_state.dart';
@@ -228,80 +228,18 @@ class _MembersTabState extends ConsumerState<MembersTab> {
         member.status == MemberStatus.active &&
         member.id != viewer.id &&
         member.role != Roles.projectOwner;
-    final scheme = Theme.of(context).colorScheme;
     final showStatus = isOwnerOrAdmin(viewer.role) || isTeamLead(viewer.role);
     final showRole = isAdmin(viewer.role);
-    final radiusChip = 8.0;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      leading: CircleAvatar(
-        radius: 22,
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
-        child: Text(
-          initialsOf(member.name),
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-      title: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              member.name,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (showStatus) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: pending
-                    ? scheme.primary.withValues(alpha: 0.14)
-                    : (Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFF10B981))
-                        .withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(radiusChip),
-              ),
-              child: Text(
-                member.status,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: pending
-                      ? scheme.primary
-                      : (Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF34D399)
-                          : const Color(0xFF10B981)),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        [
-          if (member.position != null) member.position!,
-          member.email,
-        ].join(' · '),
-        style: TextStyle(
-          fontSize: 13,
-          color: scheme.onSurfaceVariant,
-        ),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-      trailing: const SizedBox.shrink(),
+    return MemberCard(
+      member: member,
+      showStatus: showStatus,
+      showRole: showRole,
+      canConfirm: canConfirm,
+      onConfirm: canConfirm ? () => _confirm(context, ref, member) : null,
+      canChangeRole: canChangeRole,
+      onRoleChangePressed: canChangeRole
+          ? () => _showRoleChangeDialog(context, ref, member)
+          : null,
     );
   }
 

@@ -41,7 +41,8 @@ class _CommentSheetState extends ConsumerState<CommentSheet> {
       await service.create(taskId: widget.taskId, body: body);
       _bodyController.clear();
       if (mounted) {
-        Navigator.of(context).pop(true); // signal the list to refresh
+        // Stay open and reload the list so the new comment is visible.
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -100,7 +101,12 @@ class _CommentSheetState extends ConsumerState<CommentSheet> {
                     child: Text('No comments yet.'),
                   )
                 else
-                  ...comments.map((c) => _CommentRow(comment: c)).toList(),
+                  ...comments.map(
+                    (c) => _CommentRow(
+                      comment: c,
+                      onChanged: () => setState(() {}),
+                    ),
+                  ),
                 if (canMutate)
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -154,9 +160,12 @@ Future<bool?> showCommentSheet(BuildContext context, int taskId) async {
 }
 
 class _CommentRow extends ConsumerWidget {
-  const _CommentRow({required this.comment});
+  const _CommentRow({required this.comment, this.onChanged});
 
   final Comment comment;
+
+  /// Called after a successful edit or delete so the sheet reloads its list.
+  final VoidCallback? onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -230,6 +239,7 @@ class _CommentRow extends ConsumerWidget {
                   try {
                     final service = ref.read(commentServiceProvider);
                     await service.update(commentId: comment.id, body: result);
+                    onChanged?.call();
                   } catch (e) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(userMessage(e))));
@@ -262,6 +272,7 @@ class _CommentRow extends ConsumerWidget {
                   try {
                     final service = ref.read(commentServiceProvider);
                     await service.delete(comment.id);
+                    onChanged?.call();
                   } catch (e) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(userMessage(e))));

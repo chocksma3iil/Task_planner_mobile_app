@@ -12,6 +12,7 @@ from ..core.errors import (
 from ..core.rules import ACTIVE, ADMIN, PENDING, USER, can_log_in
 from ..core.security import create_token, hash_password, verify_password
 from ..models import Assignee, Project
+from .events import MEMBER_PENDING, notify
 
 
 def sign_up(
@@ -49,9 +50,26 @@ def sign_up(
         status=status,
     )
     db.add(account)
+    db.flush()
+    if status == PENDING:
+        _notify_project_owner(db, account=account)
     db.commit()
     db.refresh(account)
     return account
+
+
+def _notify_project_owner(db: Session, *, account: Assignee) -> None:
+    project = db.get(Project, account.project_id) if account.project_id else None
+    if project is None or project.owner_id is None:
+        return
+    notify(
+        db,
+        account_id=project.owner_id,
+        type=MEMBER_PENDING,
+        title="New member waiting",
+        body=f"{account.name} asked to join {project.name}.",
+        payload=str(account.id),
+    )
 
 
 def login(db: Session, *, email: str, password: str) -> tuple[Assignee, str]:
@@ -61,4 +79,4 @@ def login(db: Session, *, email: str, password: str) -> tuple[Assignee, str]:
         raise UnauthorizedError("Wrong email or password.")
     if not can_log_in(account.status):
         raise PendingAccountError()
-    return account, create_token(account.id)
+    return account, create_token(account.id, account.token_version)

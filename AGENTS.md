@@ -48,7 +48,7 @@ Ask for explicit approval before:
 
 ## Phase
 
-Discovery is complete; Milestones 1–4 are built (see IMPLEMENTATION_PLAN.md and the approval decisions in docs/decisions/). The backend decision (2026-10-21) replaced local SQLite persistence with a FastAPI + MySQL API; feature routes live under `/api/v1` and `/health` stays unversioned. Local development uses Docker Compose for the API, MySQL, and phpMyAdmin; the Flutter SDK stays on the host (see README.md and `docs/decisions/2026-10-22-local-development-onboarding.md`).
+Discovery is complete; Milestones 1–4 are built (see IMPLEMENTATION_PLAN.md and the approval decisions in docs/decisions/). The backend decision (2026-10-21) replaced local SQLite persistence with a FastAPI + MySQL API; feature routes live under `/api/v1` and `/health` stays unversioned. Local development uses Docker Compose for the API, MySQL, and phpMyAdmin; the Flutter SDK stays on the host (see README.md and `docs/decisions/2026-10-22-local-development-onboarding.md`). The v2.0 client features were integrated server-side on 2026-11-15, including `team_lead`/`viewer` roles; see `docs/decisions/2026-11-15-v2-api-integration.md`.
 
 For every new change, the Mandatory Development Workflow still applies: propose and wait for explicit approval before implementing.
 

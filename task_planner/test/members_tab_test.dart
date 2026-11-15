@@ -80,6 +80,10 @@ void main() {
     await container.read(visibleMembersProvider.notifier).refresh();
     await settle(tester);
 
+    // The new card sits below the fold at the default test viewport.
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await settle(tester);
+
     final created = fixture.api.members.firstWhere(
       (m) => m.email == 'new@example.com',
     );
@@ -181,7 +185,7 @@ void main() {
     await settle(tester);
     // The floating "Add user" button overlaps the bottom-right corner of the
     // last card at the default test viewport; scroll the card clear first.
-    await tester.drag(find.byType(ListView), const Offset(0, -150));
+    await tester.drag(find.byType(ListView), const Offset(0, -450));
     await settle(tester);
 
     final bobCard = find.ancestor(
@@ -217,7 +221,7 @@ void main() {
     await pumpTaskPlanner(tester, fixture.api, account: fixture.admin);
     await tester.tap(find.text('Members'));
     await settle(tester);
-    await tester.drag(find.byType(ListView), const Offset(0, -150));
+    await tester.drag(find.byType(ListView), const Offset(0, -450));
     await settle(tester);
 
     Future<void> chooseRole(String label) async {

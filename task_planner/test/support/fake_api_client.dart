@@ -223,8 +223,10 @@ class FakeApiClient implements ApiClient {
     final commentMatch = RegExp(r'^/tasks/(\d+)/comments$').firstMatch(uri.path);
     if (commentMatch != null) {
       final taskId = int.parse(commentMatch.group(1)!);
+      // Soft-deleted comments are returned too; the UI renders them as
+      // '[message supprimé]'.
       final items = comments
-          .where((c) => c.taskId == taskId && c.deletedAt == null)
+          .where((c) => c.taskId == taskId)
           .map((c) => c.toJson())
           .toList();
       return {'items': items, 'total': items.length};
@@ -503,7 +505,9 @@ class FakeApiClient implements ApiClient {
       subtasks[index] = updated;
       return updated.toJson();
     }
-    final commentMatch = RegExp(r'^/tasks/comments/(\d+)$').firstMatch(path);
+    final commentMatch = RegExp(
+      r'^/(?:tasks/)?comments/(\d+)$',
+    ).firstMatch(path);
     if (commentMatch != null) {
       final id = int.parse(commentMatch.group(1)!);
       final index = comments.indexWhere((c) => c.id == id);
@@ -541,7 +545,9 @@ class FakeApiClient implements ApiClient {
       subtasks.removeWhere((s) => s.id == id);
       return null;
     }
-    final commentMatch = RegExp(r'^/tasks/comments/(\d+)$').firstMatch(path);
+    final commentMatch = RegExp(
+      r'^/(?:tasks/)?comments/(\d+)$',
+    ).firstMatch(path);
     if (commentMatch != null) {
       final id = int.parse(commentMatch.group(1)!);
       final index = comments.indexWhere((c) => c.id == id);

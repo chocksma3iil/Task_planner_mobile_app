@@ -42,9 +42,7 @@ ThemeData buildTheme(Brightness brightness) {
     primaryContainer: isDark
         ? const Color(0xFFA3E635)
         : const Color(0xFFA3E635),
-    onPrimaryContainer: isDark
-        ? const Color(0xFFFFFFFF)
-        : const Color(0xFF0F172A),
+    onPrimaryContainer: const Color(0xFF0F172A),
     errorContainer: isDark ? const Color(0xFFFECACA) : const Color(0xFFFEE2E2),
     onErrorContainer: isDark
         ? const Color(0xFF7F1D1D)

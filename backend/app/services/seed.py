@@ -154,6 +154,7 @@ def _ensure_project(db: Session) -> Project:
     project = Project(
         name=DEMO_PROJECT_NAME,
         description="Seeded demo project for local development.",
+        ai_opt_in=True,
     )
     db.add(project)
     db.flush()
