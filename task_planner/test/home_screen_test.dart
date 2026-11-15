@@ -8,7 +8,6 @@ import 'package:task_planner/providers/api_providers.dart';
 import 'package:task_planner/providers/session_providers.dart';
 
 import 'support/fake_api_client.dart';
-import 'package:task_planner/widgets/members/member_card.dart';
 
 import 'support/app_harness.dart';
 
@@ -91,12 +90,6 @@ void main() {
 
     await tester.tap(find.text('Members'));
     await settle(tester);
-    
-    // Debug: count MemberCards
-    final cardCount = tester.widgetList(find.byType(MemberCard)).length;
-    print('MEMBER CARD COUNT: $cardCount');
-    final bobCards = find.ancestor(of: find.text('Bob Builder'), matching: find.byType(MemberCard));
-    print('BOB CARDS: ${bobCards.evaluate().length}');
 
     expect(find.text('Root Admin'), findsWidgets);
     expect(find.text('Olive Owner'), findsWidgets);

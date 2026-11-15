@@ -217,20 +217,8 @@ class _MembersTabState extends ConsumerState<MembersTab> {
     Account member, {
     required bool pending,
   }) {
-    final canConfirm =
-        pending &&
-        (isAdmin(viewer.role) ||
-            ((viewer.role == Roles.projectOwner ||
-                    isTeamLead(viewer.role)) &&
-                member.projectId == viewer.projectId));
-    final canChangeRole =
-        isAdmin(viewer.role) &&
-        member.status == MemberStatus.active &&
-        member.id != viewer.id &&
-        member.role != Roles.projectOwner;
     final scheme = Theme.of(context).colorScheme;
     final showStatus = isOwnerOrAdmin(viewer.role) || isTeamLead(viewer.role);
-    final showRole = isAdmin(viewer.role);
     final radiusChip = 8.0;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -303,101 +291,6 @@ class _MembersTabState extends ConsumerState<MembersTab> {
       ),
       trailing: const SizedBox.shrink(),
     );
-  }
-
-  /// Applies an admin-only role change; granting admin asks for confirmation.
-  Future<void> _changeRole(
-    BuildContext context,
-    WidgetRef ref,
-    Account member,
-    String role,
-  ) async {
-    if (role == Roles.admin) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Give admin access?'),
-          content: Text(
-            '${member.name} will be able to manage every project, member '
-            'and role.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Make admin'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !context.mounted) {
-        return;
-      }
-    }
-    try {
-      await ref
-          .read(memberServiceProvider)
-          .changeRole(userId: member.id, role: role);
-    } catch (e) {
-      if (context.mounted) {
-        showAppSnackBar(context, userMessage(e));
-      }
-    }
-  }
-
-  /// Shows a role-selection dialog for [member], then applies the chosen role.
-  Future<void> _showRoleChangeDialog(
-    BuildContext context,
-    WidgetRef ref,
-    Account member,
-  ) async {
-    final newRole = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change role'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Admin'),
-              onTap: () => Navigator.pop(context, Roles.admin),
-            ),
-            ListTile(
-              title: const Text('Team lead'),
-              onTap: () => Navigator.pop(context, Roles.teamLead),
-            ),
-            ListTile(
-              title: const Text('User'),
-              onTap: () => Navigator.pop(context, Roles.user),
-            ),
-            ListTile(
-              title: const Text('Viewer'),
-              onTap: () => Navigator.pop(context, Roles.viewer),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (newRole != null && newRole != member.role) {
-      await _changeRole(context, ref, member, newRole);
-    }
-  }
-
-  Future<void> _confirm(
-    BuildContext context,
-    WidgetRef ref,
-    Account member,
-  ) async {
-    try {
-      await ref.read(memberServiceProvider).confirmUser(userId: member.id);
-    } catch (e) {
-      if (context.mounted) {
-        showAppSnackBar(context, userMessage(e));
-      }
-    }
   }
 
   Future<void> _addDialog(

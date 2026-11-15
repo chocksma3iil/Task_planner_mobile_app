@@ -134,7 +134,6 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final color = pending
         ? Theme.of(context).colorScheme.primary
         : successColor(Theme.of(context).brightness);

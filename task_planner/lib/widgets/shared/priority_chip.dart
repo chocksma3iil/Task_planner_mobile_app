@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design_tokens.dart';
-import '../../models/models.dart';
 
 /// Small colored pill showing the task priority.
 ///
@@ -22,7 +21,6 @@ class PriorityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final color = _color(context);
     final label = priority.isEmpty
         ? ''

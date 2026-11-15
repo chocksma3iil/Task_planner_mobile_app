@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/data_providers.dart';
 import '../providers/session_providers.dart';
+
+/// Key used to remember the last email typed on the login screen. The
+/// password is never stored; the OS password manager handles it through
+/// autofill when the user allows it.
+const _lastEmailKey = 'last_login_email';
 
 /// Start screen of the app. Collects credentials only; role and membership
 /// checks happen on the server, never in this widget.
@@ -22,6 +29,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  /// Pre-fills the email of the last successful login, if any. A failure to
+  /// read preferences must never block the login screen.
+  Future<void> _loadSavedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_lastEmailKey);
+      if (mounted && saved != null && saved.isNotEmpty && _email.text.isEmpty) {
+        _email.text = saved;
+      }
+    } catch (_) {
+      // Preferences are a convenience only; ignore read errors.
+    }
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _password.dispose();
@@ -35,9 +62,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _busy = true;
     });
     try {
+      final email = _email.text.trim();
       final account = await ref
           .read(authServiceProvider)
-          .login(email: _email.text.trim(), password: _password.text);
+          .login(email: email, password: _password.text);
+      // Remember the email (never the password) and let the platform's
+      // password manager offer to save the credentials for next time.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_lastEmailKey, email);
+      } catch (_) {
+        // Keeping the email is optional; never fail a login over it.
+      }
+      TextInput.finishAutofillContext();
       await logIn(ref, account);
     } on StateError catch (e) {
       setState(() => _error = e.message);
@@ -98,34 +135,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       _NoticeBanner(message: notice),
                     ],
                     const SizedBox(height: 28),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      autofillHints: const [AutofillHints.password],
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          tooltip: _obscure ? 'Show password' : 'Hide password',
-                          icon: Icon(
-                            _obscure
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+                    AutofillGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _email,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.mail_outline),
+                            ),
                           ),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _password,
+                            obscureText: _obscure,
+                            autofillHints: const [AutofillHints.password],
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                tooltip: _obscure
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            onSubmitted: (_) => _login(),
+                          ),
+                        ],
                       ),
-                      onSubmitted: (_) => _login(),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 16),

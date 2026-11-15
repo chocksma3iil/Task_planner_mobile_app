@@ -15,10 +15,8 @@ ThemeData buildTheme(Brightness brightness) {
   final Color surface = surfaceColor(brightness);
   final Color onSurface = onSurfaceColor(brightness);
   final Color surfaceVariant = surfaceVariantColor(brightness);
-  final Color onSurfaceVariant = onSurfaceVariantColor(brightness);
   final Color outline = outlineColor(brightness);
   final Color error = errorColor(brightness);
-  final Color success = successColor(brightness);
 
   final scheme = ColorScheme(
     brightness: brightness,

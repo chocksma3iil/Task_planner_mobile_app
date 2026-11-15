@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:task_planner/models/models.dart';
 import 'package:task_planner/providers/api_providers.dart';
 import 'package:task_planner/providers/data_providers.dart';
@@ -33,6 +34,51 @@ void main() {
     expect(api.token, 'fake-token');
     expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('Projects'), findsWidgets);
+  });
+
+  testWidgets('a successful login remembers the email for next time', (
+    tester,
+  ) async {
+    final api = FakeApiClient();
+    api.addAccount(
+      const Account(
+        id: 1,
+        name: 'Root Admin',
+        email: 'root@example.com',
+        role: 'admin',
+        status: 'active',
+      ),
+    );
+    await pumpTaskPlanner(tester, api);
+
+    await tester.enterText(find.byType(TextField).at(0), 'root@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password123');
+    await tester.tap(find.widgetWithText(FilledButton, 'Log in'));
+    await settle(tester);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('last_login_email'), 'root@example.com');
+    // The password itself is never stored.
+    expect(prefs.getString('last_login_password'), isNull);
+  });
+
+  testWidgets('the remembered email is pre-filled on the login screen', (
+    tester,
+  ) async {
+    final api = FakeApiClient();
+    await pumpTaskPlanner(
+      tester,
+      api,
+      prefs: const {'last_login_email': 'saved@example.com'},
+    );
+    await settle(tester);
+
+    final emailField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(emailField.controller?.text, 'saved@example.com');
+    final passwordField = tester.widget<TextField>(
+      find.byType(TextField).at(1),
+    );
+    expect(passwordField.controller?.text, isEmpty);
   });
 
   testWidgets('login shows the server message for a wrong password', (

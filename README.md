@@ -107,6 +107,42 @@ does not expose the database to the LAN.
 needed for the Compose flow. Never commit either `.env` file or use development
 credentials for shared or production systems.
 
+### Optional: email and AI
+
+Password-reset and notification emails need an SMTP account. Gmail requires an
+**App Password** (Google Account → Security → 2-Step Verification → App
+passwords), not the normal account password:
+
+```text
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=the-16-character-app-password
+SMTP_FROM=you@gmail.com
+SMTP_TLS=true
+```
+
+Restart the API after editing `.env` (`docker compose up -d api`). Without SMTP
+the API logs a warning and skips the email: the reset token is still created,
+but the code cannot be delivered. Port 465 (implicit TLS) is also supported.
+
+The AI layer calls a local Ollama model. Install Ollama on the host, make it
+listen on all interfaces so the container can reach it, and pull the model:
+
+```powershell
+[Environment]::SetEnvironmentVariable('OLLAMA_HOST', '0.0.0.0:11434', 'User')
+ollama pull llama3.2
+```
+
+Restart Ollama once after setting `OLLAMA_HOST` (quit it from the tray, then
+start it again).
+
+`compose.yaml` defaults to `llama3.2:latest` (3B, ~2 GB). It fits 8–16 GB
+machines and 4 GB GPUs. A 7B model needs roughly 5 GB of free RAM on top of
+Docker and fails with `cudaMalloc failed: out of memory` when that is not
+available; only change `AI_MODEL` if the machine has the headroom. AI responses
+are proposals only — nothing is written until the user approves them.
+
 ## 4. Start Docker services
 
 From the repository root:
