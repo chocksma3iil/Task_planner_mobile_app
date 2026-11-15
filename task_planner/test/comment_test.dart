@@ -1,6 +1,6 @@
 /// Comment widget tests (D05): comment sheet, create/edit/delete, viewer read-only.
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test';
+import 'package:flutter_test/flutter_test.dart';
 
 import 'package:task_planner/models/comment.dart';
 import 'package:task_planner/widgets/tasks/comment_sheet.dart';
