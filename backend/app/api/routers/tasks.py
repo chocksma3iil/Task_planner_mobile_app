@@ -2,23 +2,34 @@
 from fastapi import APIRouter, Query, Response
 
 from ...models import Task
-from ...schemas import TaskIn, TaskOut, TaskUpdate
+from ...schemas import (
+    BulkTaskAction,
+    BulkTaskResultOut,
+    TaskIn,
+    TaskListOut,
+    TaskOut,
+    TaskUpdate,
+)
 from ...services import tasks as task_service
+from ...core.errors import RuleError
 from ..deps import CurrentUser, DbSession
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("", response_model=list[TaskOut])
+@router.get("", response_model=TaskListOut)
 def list_tasks(
     db: DbSession,
     user: CurrentUser,
     project_id: int | None = Query(default=None),
     assignee_id: int | None = Query(default=None),
-) -> list[Task]:
-    return task_service.list_tasks(
-        db, actor=user, project_id=project_id, assignee_id=assignee_id
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> TaskListOut:
+    items, total = task_service.list_tasks(
+        db, actor=user, project_id=project_id, assignee_id=assignee_id, limit=limit, offset=offset
     )
+    return TaskListOut(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.post("", response_model=TaskOut, status_code=201)
@@ -61,3 +72,34 @@ def reopen_task(task_id: int, db: DbSession, user: CurrentUser) -> Task:
 def delete_task(task_id: int, db: DbSession, user: CurrentUser) -> Response:
     task_service.delete_task(db, actor=user, task_id=task_id)
     return Response(status_code=204)
+
+
+@router.post("/bulk/complete", response_model=BulkTaskResultOut)
+def bulk_complete_tasks(
+    body: BulkTaskAction,
+    db: DbSession,
+    user: CurrentUser,
+) -> BulkTaskResultOut:
+    return task_service.bulk_complete_tasks(db, actor=user, task_ids=body.task_ids)
+
+
+@router.post("/bulk/reassign", response_model=BulkTaskResultOut)
+def bulk_reassign_tasks(
+    body: BulkTaskAction,
+    db: DbSession,
+    user: CurrentUser,
+) -> BulkTaskResultOut:
+    if body.assignee_id is None:
+        raise RuleError("assignee_id is required for reassign")
+    return task_service.bulk_reassign_tasks(
+        db, actor=user, task_ids=body.task_ids, new_assignee_id=body.assignee_id
+    )
+
+
+@router.post("/bulk/delete", response_model=BulkTaskResultOut)
+def bulk_delete_tasks(
+    body: BulkTaskAction,
+    db: DbSession,
+    user: CurrentUser,
+) -> BulkTaskResultOut:
+    return task_service.bulk_delete_tasks(db, actor=user, task_ids=body.task_ids)

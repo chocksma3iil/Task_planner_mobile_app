@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatters.dart';
 import '../../models/models.dart';
+import '../../providers/data_providers.dart';
+import '../ai/ai_dialogs.dart';
+import '../shared/app_snackbar.dart';
 
 /// Values collected by [TaskFormDialog] for create or edit.
 class TaskDraft {
@@ -23,7 +27,7 @@ class TaskDraft {
 }
 
 /// Create/edit form for a task. Returns a [TaskDraft] when saved.
-class TaskFormDialog extends StatefulWidget {
+class TaskFormDialog extends ConsumerStatefulWidget {
   const TaskFormDialog({
     super.key,
     required this.members,
@@ -41,10 +45,10 @@ class TaskFormDialog extends StatefulWidget {
   final List<Map<String, dynamic>> initialSubtasks;
 
   @override
-  State<TaskFormDialog> createState() => _TaskFormDialogState();
+  ConsumerState<TaskFormDialog> createState() => _TaskFormDialogState();
 }
 
-class _TaskFormDialogState extends State<TaskFormDialog> {
+class _TaskFormDialogState extends ConsumerState<TaskFormDialog> {
   late final TextEditingController _title;
   late final TextEditingController _description;
   late String _priority;
@@ -54,6 +58,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   final List<Map<String, dynamic>> _subtasks = []; // {id, title, completed, sort_order, _deleted}
   final TextEditingController _subtaskTitle = TextEditingController();
   int _nextSortOrder = 0;
+  bool _aiBusy = false;
 
   @override
   void initState() {
@@ -110,6 +115,59 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
         _subtasks.removeAt(index);
       }
     });
+  }
+
+  Future<void> _suggestSubtasks() async {
+    final task = widget.initial;
+    if (task == null) {
+      return;
+    }
+    setState(() => _aiBusy = true);
+    try {
+      final proposal = await ref.read(aiServiceProvider).decompose(task.id);
+      if (!mounted) {
+        return;
+      }
+      if (proposal.subtasks.isEmpty) {
+        showAppSnackBar(
+          context,
+          'No subtasks suggested. Check that AI is enabled for this project.',
+        );
+        return;
+      }
+      final selected = await showDecomposeDialog(context, proposal);
+      if (selected == null || selected.isEmpty || !mounted) {
+        return;
+      }
+      final service = ref.read(subtaskServiceProvider);
+      final created = <Map<String, dynamic>>[];
+      for (final subtask in selected) {
+        final result = await service.create(
+          taskId: task.id,
+          title: subtask.title,
+          sortOrder: _nextSortOrder++,
+        );
+        created.add({
+          'id': result.id,
+          'title': result.title,
+          'completed': result.completed,
+          'sort_order': result.sortOrder,
+        });
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() => _subtasks.addAll(created));
+      showAppSnackBar(context, 'Added ${created.length} subtask(s).');
+    } catch (e) {
+      if (mounted) {
+        showAppSnackBar(context, userMessage(e));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _aiBusy = false);
+      }
+    }
   }
 
   void _submit() {
@@ -232,6 +290,23 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   'Subtasks',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
+                const Spacer(),
+                if (editing)
+                  TextButton.icon(
+                    onPressed: _aiBusy ? null : _suggestSubtasks,
+                    icon: _aiBusy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 16),
+                    label: Text(_aiBusy ? 'Asking AI…' : 'Suggest (AI)'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -289,7 +364,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _submit,
+          onPressed: _aiBusy ? null : _submit,
           child: Text(editing ? 'Save' : 'Create'),
         ),
       ],

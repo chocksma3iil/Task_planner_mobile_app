@@ -27,6 +27,13 @@ abstract class ApiClient {
 
   Future<dynamic> post(String path, [Map<String, dynamic>? body]);
 
+  /// POST for slow operations (local AI generation) with its own timeout.
+  Future<dynamic> postSlow(
+    String path, [
+    Map<String, dynamic>? body,
+    Duration? timeout,
+  ]);
+
   Future<dynamic> patch(String path, [Map<String, dynamic>? body]);
 
   Future<dynamic> delete(String path);
@@ -76,6 +83,19 @@ class HttpApiClient implements ApiClient {
       _request('POST', path, body: body);
 
   @override
+  Future<dynamic> postSlow(
+    String path, [
+    Map<String, dynamic>? body,
+    Duration? timeout,
+  ]) =>
+      _request(
+        'POST',
+        path,
+        body: body,
+        requestTimeout: timeout,
+      );
+
+  @override
   Future<dynamic> patch(String path, [Map<String, dynamic>? body]) =>
       _request('PATCH', path, body: body);
 
@@ -110,6 +130,7 @@ class HttpApiClient implements ApiClient {
     String method,
     String path, {
     Map<String, dynamic>? body,
+    Duration? requestTimeout,
   }) async {
     final uri = Uri.parse('$baseUrl$path');
     final hadToken = _token != null;
@@ -128,7 +149,7 @@ class HttpApiClient implements ApiClient {
         'DELETE' => _http.delete(uri, headers: headers),
         _ => throw UnsupportedError('HTTP $method is not supported.'),
       };
-      response = await request.timeout(timeout);
+      response = await request.timeout(requestTimeout ?? timeout);
     } on UnsupportedError {
       rethrow;
     } on TimeoutException {

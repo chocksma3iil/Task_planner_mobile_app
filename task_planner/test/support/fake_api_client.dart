@@ -415,6 +415,14 @@ class FakeApiClient implements ApiClient {
   }
 
   @override
+  Future<dynamic> postSlow(
+    String path, [
+    Map<String, dynamic>? body,
+    Duration? timeout,
+  ]) =>
+      post(path, body);
+
+  @override
   Future<dynamic> patch(String path, [Map<String, dynamic>? body]) async {
     _guardUnauthorized();
     final data = body ?? const <String, dynamic>{};
@@ -436,14 +444,20 @@ class FakeApiClient implements ApiClient {
     }
     final aiOptInMatch = RegExp(r'^/projects/(\d+)/ai-opt-in$').firstMatch(path);
     if (aiOptInMatch != null) {
-      _requireAdmin();
+      final actor = _requireSignedIn();
       final projectId = int.parse(aiOptInMatch.group(1)!);
       final index = projects.indexWhere((p) => p.id == projectId);
       if (index == -1) {
         throw StateError('Project not found.');
       }
-      final aiOptIn = data['ai_opt_in'] as bool? ?? false;
       final old = projects[index];
+      final canManage =
+          actor.role == 'admin' ||
+          (actor.role == 'project_owner' && old.ownerId == actor.id);
+      if (!canManage) {
+        throw StateError('Only an admin or project owner can toggle AI.');
+      }
+      final aiOptIn = data['ai_opt_in'] as bool? ?? false;
       projects[index] = Project(
         id: old.id,
         name: old.name,

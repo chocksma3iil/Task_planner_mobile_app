@@ -44,6 +44,18 @@ class ProjectService {
     return Project.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Enable or disable AI for a project (admin or project owner).
+  Future<Project> setAiOptIn({
+    required int projectId,
+    required bool enabled,
+  }) async {
+    final json = await _client.patch('/projects/$projectId/ai-opt-in', {
+      'ai_opt_in': enabled,
+    });
+    DataSync.instance.ping();
+    return Project.fromJson(json as Map<String, dynamic>);
+  }
+
   /// One page of projects, sorted by name. The API list is public so the
   /// sign-up screen can offer projects before login. Set [includeArchived]
   /// to also return archived projects.

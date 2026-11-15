@@ -31,6 +31,21 @@ services:
       ENVIRONMENT: development
       CORS_ORIGINS: "*"
       CREATE_SCHEMA_ON_STARTUP: "false"
+      # AI layer (v2.0): local Ollama on the host, reached through Docker.
+      # A 3B model fits this machine (16 GB RAM / 4 GB VRAM); 7B does not.
+      AI_PROVIDER: "ollama"
+      AI_MODEL: "llama3.2:latest"
+      AI_BASE_URL: "http://host.docker.internal:11434"
+      AI_TIMEOUT_SECONDS: "180"
+      # Email (password reset + notifications). Empty values disable sending.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"

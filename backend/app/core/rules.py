@@ -2,13 +2,15 @@
 
 The server is the enforcer; the Dart copy stays as a UX-side check only.
 """
-from .errors import AssignmentError, RuleError
+from .errors import AssignmentError, ForbiddenError, RuleError
 
-# Roles (cumulative: admin > project owner > user).
+# Roles (cumulative: admin > project owner > user > viewer).
 ADMIN = "admin"
 PROJECT_OWNER = "project_owner"
+TEAM_LEAD = "team_lead"
 USER = "user"
-ROLES = (ADMIN, PROJECT_OWNER, USER)
+VIEWER = "viewer"
+ROLES = (ADMIN, PROJECT_OWNER, TEAM_LEAD, USER, VIEWER)
 
 # Membership states.
 PENDING = "pending"
@@ -33,14 +35,28 @@ def is_owner_or_admin(role: str) -> bool:
     return role in (ADMIN, PROJECT_OWNER)
 
 
+def is_viewer(role: str) -> bool:
+    return role == VIEWER
+
+
+def is_team_lead(role: str) -> bool:
+    return role == TEAM_LEAD
+
+
+def require_can_mutate(role: str) -> None:
+    """Viewers cannot make any mutations (read-only)."""
+    if is_viewer(role):
+        raise ForbiddenError("Viewers cannot make changes.")
+
+
 def require_admin(role: str) -> None:
     if not is_admin(role):
-        raise RuleError("Only an admin can do this.")
+        raise ForbiddenError("Only an admin can do this.")
 
 
 def require_owner_or_admin(role: str) -> None:
     if not is_owner_or_admin(role):
-        raise RuleError("Only a project owner or admin can do this.")
+        raise ForbiddenError("Only a project owner or admin can do this.")
 
 
 def validate_task_assignment(
@@ -56,4 +72,4 @@ def require_project_access(
 ) -> None:
     """Admins manage any project; everyone else only their own."""
     if not is_admin(role) and actor_project_id != project_id:
-        raise RuleError("You can only manage your own project tasks.")
+        raise ForbiddenError("You can only manage your own project tasks.")

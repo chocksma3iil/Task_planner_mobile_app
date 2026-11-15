@@ -42,3 +42,30 @@ class TaskUpdate(BaseModel):
     priority: Priority | None = None
     due_date: date | None = None
     assignee_id: int | None = None
+
+
+class TaskListOut(BaseModel):
+    items: list[TaskOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class BulkTaskAction(BaseModel):
+    """Bulk action on multiple tasks: task IDs and optional target assignee."""
+    task_ids: list[int]
+    assignee_id: int | None = None
+
+
+class BulkTaskResult(BaseModel):
+    """Result of a bulk action per task ID."""
+    task_id: int
+    success: bool
+    error: str | None = None
+
+
+class BulkTaskResultOut(BaseModel):
+    results: list[BulkTaskResult]
+    total: int
+    succeeded: int
+    failed: int

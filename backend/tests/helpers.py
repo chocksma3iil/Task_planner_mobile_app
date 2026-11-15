@@ -45,3 +45,17 @@ def bootstrap(client, project_name="Alpha"):
     )
     assert response.status_code == 201, response.text
     return admin, headers, response.json()
+
+
+def list_items(response):
+    """Extract items from a paginated list response.
+
+    Accepts either a Response object (with .json() method) or an already-parsed dict.
+    """
+    if hasattr(response, "json"):
+        data = response.json()
+    else:
+        data = response
+    if isinstance(data, dict) and "items" in data:
+        return data["items"]
+    return data  # fallback for non-paginated responses

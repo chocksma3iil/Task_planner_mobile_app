@@ -1,5 +1,5 @@
 """Tasks: assignment rule, access scoping, status transitions, reads."""
-from helpers import auth_headers, bootstrap, sign_up
+from helpers import auth_headers, bootstrap, list_items, sign_up
 
 
 def _setup(client):
@@ -14,7 +14,7 @@ def _setup(client):
 def test_cross_project_assignment_rejected(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     outsider = sign_up(client, "eve@example.com", name="Eve",
                        project_id=project_b["id"])
     client.post(f"/api/v1/members/{outsider['id']}/confirm", headers=headers)
@@ -51,7 +51,7 @@ def test_pending_member_cannot_receive_tasks(client):
 def test_non_admin_cannot_create_in_another_project(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     member = sign_up(client, "bob@example.com", name="Bob",
                      project_id=project_a["id"])
     client.post(f"/api/v1/members/{member['id']}/confirm", headers=headers)
@@ -62,7 +62,7 @@ def test_non_admin_cannot_create_in_another_project(client):
         json={"project_id": project_b["id"], "title": "Sneaky"},
         headers=user_headers,
     )
-    assert response.status_code == 400
+    assert response.status_code == 403
     assert response.json()["detail"] == (
         "You can only manage your own project tasks."
     )
@@ -103,13 +103,13 @@ def test_delete_removes_task(client):
     remaining = client.get(
         f"/api/v1/tasks?project_id={project['id']}", headers=headers
     )
-    assert remaining.json() == []
+    assert list_items(remaining) == []
 
 
 def test_task_reads_are_scoped_and_validated(client):
     headers, project_a, member = _setup(client)
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     user_headers = auth_headers(client, "bob@example.com")
 
     # Missing / duplicated filters.
@@ -144,13 +144,13 @@ def test_mine_view_returns_only_assigned_tasks(client):
     )
 
     mine = client.get(f"/api/v1/tasks?assignee_id={member['id']}", headers=headers)
-    assert [t["title"] for t in mine.json()] == ["For Bob"]
+    assert [t["title"] for t in list_items(mine)] == ["For Bob"]
 
     as_owner = client.get(
         f"/api/v1/tasks?assignee_id={member['id']}",
         headers=auth_headers(client, "bob@example.com"),
     )
-    assert [t["title"] for t in as_owner.json()] == ["For Bob"]
+    assert [t["title"] for t in list_items(as_owner)] == ["For Bob"]
 
 
 def test_edit_task_updates_and_clears_optional_fields(client):
@@ -192,7 +192,7 @@ def test_edit_task_updates_and_clears_optional_fields(client):
 def test_edit_rejects_blank_title_and_invalid_assignee(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     outsider = sign_up(
         client, "eve@example.com", name="Eve", project_id=project_b["id"]
     )
@@ -235,6 +235,106 @@ def test_edit_rejects_blank_title_and_invalid_assignee(client):
     )
 
 
+def test_create_task_defaults_to_the_whole_project(client):
+    headers, project, _ = _setup(client)
+    response = client.post(
+        "/api/v1/tasks",
+        json={"project_id": project["id"], "title": "Whole project task"},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["assignee_id"] is None
+    assert body["status"] == "todo"
+    assert body["priority"] == "medium"
+    assert body["due_date"] is None
+
+
+def test_create_task_assigns_to_active_member_of_the_project(client):
+    headers, project, member = _setup(client)
+    response = client.post(
+        "/api/v1/tasks",
+        json={
+            "project_id": project["id"],
+            "title": "For Bob",
+            "assignee_id": member["id"],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    assert response.json()["assignee_id"] == member["id"]
+
+
+def test_task_list_is_newest_first(client):
+    headers, project, _ = _setup(client)
+    for title in ("First", "Second", "Third"):
+        created = client.post(
+            "/api/v1/tasks",
+            json={"project_id": project["id"], "title": title},
+            headers=headers,
+        )
+        assert created.status_code == 201
+
+    rows = client.get(
+        f"/api/v1/tasks?project_id={project['id']}", headers=headers
+    ).json()
+    assert [row["title"] for row in list_items(rows)] == ["Third", "Second", "First"]
+    stamps = [row["created_at"] for row in list_items(rows)]
+    assert stamps == sorted(stamps, reverse=True)
+
+
+def test_priority_and_due_date_round_trip(client):
+    headers, project, _ = _setup(client)
+    created = client.post(
+        "/api/v1/tasks",
+        json={
+            "project_id": project["id"],
+            "title": "Release",
+            "priority": "high",
+            "due_date": "2026-11-15",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201
+    assert created.json()["priority"] == "high"
+    assert created.json()["due_date"] == "2026-11-15"
+
+    listed = client.get(
+        f"/api/v1/tasks?project_id={project['id']}", headers=headers
+    ).json()
+    assert list_items(listed)[0]["priority"] == "high"
+    assert list_items(listed)[0]["due_date"] == "2026-11-15"
+
+
+def test_status_transitions_are_idempotent(client):
+    headers, project, _ = _setup(client)
+    task = client.post(
+        "/api/v1/tasks",
+        json={"project_id": project["id"], "title": "Stable"},
+        headers=headers,
+    ).json()
+
+    first_done = client.patch(
+        f"/api/v1/tasks/{task['id']}/complete", headers=headers
+    )
+    second_done = client.patch(
+        f"/api/v1/tasks/{task['id']}/complete", headers=headers
+    )
+    assert first_done.status_code == second_done.status_code == 200
+    assert second_done.json()["status"] == "completed"
+    assert second_done.json()["completed_at"] is not None
+
+    first_open = client.patch(
+        f"/api/v1/tasks/{task['id']}/reopen", headers=headers
+    )
+    second_open = client.patch(
+        f"/api/v1/tasks/{task['id']}/reopen", headers=headers
+    )
+    assert first_open.status_code == second_open.status_code == 200
+    assert second_open.json()["status"] == "todo"
+    assert second_open.json()["completed_at"] is None
+
+
 def test_edit_requires_access_to_the_task_project(client):
     _, headers, project_a = bootstrap(client, "Alpha")
     bob = sign_up(
@@ -242,7 +342,7 @@ def test_edit_requires_access_to_the_task_project(client):
     )
     client.post(f"/api/v1/members/{bob['id']}/confirm", headers=headers)
     client.post("/api/v1/projects", json={"name": "Beta"}, headers=headers)
-    project_b = client.get("/api/v1/projects").json()[-1]
+    project_b = client.get("/api/v1/projects").json()["items"][-1]
     task_b = client.post(
         "/api/v1/tasks",
         json={"project_id": project_b["id"], "title": "Beta task"},
@@ -254,7 +354,7 @@ def test_edit_requires_access_to_the_task_project(client):
         json={"title": "Hijacked"},
         headers=auth_headers(client, "bob@example.com"),
     )
-    assert denied.status_code == 400
+    assert denied.status_code == 403
     assert denied.json()["detail"] == (
         "You can only manage your own project tasks."
     )

@@ -1,5 +1,18 @@
 """Auth: bootstrap admin, pending sign-ups, login states, token session."""
+from datetime import datetime, timedelta, timezone
+
+import jwt
+
+from app.core.security import ALGORITHM, SECRET_KEY
 from helpers import auth_headers, bootstrap, login_token, sign_up
+
+
+def _expired_token(user_id: int) -> str:
+    payload = {
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def test_first_signup_becomes_admin_and_can_use_session(client):
@@ -68,6 +81,34 @@ def test_wrong_password_rejected(client):
     assert response.json()["detail"] == "Wrong email or password."
 
 
+def test_repeated_login_failures_are_throttled(client):
+    from app.core.config import LOGIN_MAX_ATTEMPTS
+    from app.core.rate_limit import login_throttle
+
+    sign_up(client, "root@example.com")
+    for _ in range(LOGIN_MAX_ATTEMPTS):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "root@example.com", "password": "nope"},
+        )
+        assert response.status_code == 401
+
+    blocked = client.post(
+        "/api/v1/auth/login",
+        json={"email": "root@example.com", "password": "password123"},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"] == "Too many login attempts. Try again later."
+
+    # Once the window is cleared, the right password works again.
+    login_throttle.clear()
+    ok = client.post(
+        "/api/v1/auth/login",
+        json={"email": "root@example.com", "password": "password123"},
+    )
+    assert ok.status_code == 200
+
+
 def test_me_requires_a_valid_token(client):
     assert client.get("/api/v1/auth/me").status_code == 401
     assert (
@@ -76,3 +117,13 @@ def test_me_requires_a_valid_token(client):
         ).status_code
         == 401
     )
+
+
+def test_expired_token_is_rejected(client):
+    admin = sign_up(client, "root@example.com")
+    response = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {_expired_token(admin['id'])}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or expired token."

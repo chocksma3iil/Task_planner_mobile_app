@@ -4,6 +4,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Force the mock AI provider for tests (no Ollama needed in CI).
+os.environ["AI_PROVIDER"] = "mock"
+
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 if not os.environ.get("TEST_DATABASE_URL"):
     raise RuntimeError(
@@ -16,6 +19,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.core.database import Base, engine  # noqa: E402
+from app.core.rate_limit import login_throttle  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -26,6 +30,14 @@ def client():
     Base.metadata.create_all(engine)
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def reset_login_throttle():
+    """Failed-login counters are process state, not database state."""
+    login_throttle.clear()
+    yield
+    login_throttle.clear()
 
 
 @pytest.fixture(autouse=True)

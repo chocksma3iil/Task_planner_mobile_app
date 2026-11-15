@@ -13,7 +13,7 @@ import '../widgets/shared/search_field.dart';
 import '../widgets/shared/section_header.dart';
 import '../widgets/tasks/task_tile.dart';
 import '../widgets/tasks/task_form_dialog.dart';
-import '../widgets/tasks/comment_sheet.dart';
+import '../widgets/ai/ai_dialogs.dart';
 
 /// Planner view: groups tasks by urgency (overdue, today, upcoming, no due
 /// date, completed) across the user's visible scope.
@@ -29,9 +29,12 @@ class PlannerTab extends ConsumerStatefulWidget {
   ConsumerState<PlannerTab> createState() => _PlannerTabState();
 }
 
+enum _AiAction { weeklyPlan, briefing, capture, toggleAi }
+
 class _PlannerTabState extends ConsumerState<PlannerTab> {
   int? _selectedProjectId;
   String _query = '';
+  bool _aiBusy = false;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +116,18 @@ class _PlannerTabState extends ConsumerState<PlannerTab> {
   }) {
     final tasksAsync = ref.watch(projectTasksProvider(projectId));
     final canMutate = !isViewer(user.role);
+    final projectList =
+        ref.watch(projectListProvider).value?.items ?? const <Project>[];
+    Project? currentProject;
+    for (final project in projectList) {
+      if (project.id == projectId) {
+        currentProject = project;
+        break;
+      }
+    }
+    final aiEnabled = currentProject?.aiOptIn;
+    final canManageAi = isAdmin(user.role) ||
+        (isOwnerOrAdmin(user.role) && currentProject?.ownerId == user.id);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -231,10 +246,29 @@ class _PlannerTabState extends ConsumerState<PlannerTab> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            icon: const Icon(Icons.auto_awesome, size: 18),
-                            label: const Text('Propose weekly plan (AI)'),
-                            onPressed: () =>
-                                _proposeWeeklyPlan(context, projectId),
+                            icon: _aiBusy
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.auto_awesome, size: 18),
+                            label: Text(
+                              _aiBusy
+                                  ? 'Asking the local AI model…'
+                                  : 'AI actions',
+                            ),
+                            onPressed: _aiBusy
+                                ? null
+                                : () => _openAiSheet(
+                                      context,
+                                      projectId: projectId,
+                                      project: currentProject,
+                                      aiEnabled: aiEnabled,
+                                      canManageAi: canManageAi,
+                                    ),
                           ),
                         ),
                       ],
@@ -429,11 +463,256 @@ class _PlannerTabState extends ConsumerState<PlannerTab> {
     }
   }
 
-  Future<void> _proposeWeeklyPlan(BuildContext context, int projectId) async {
+  Future<void> _openAiSheet(
+    BuildContext context, {
+    required int projectId,
+    required Project? project,
+    required bool? aiEnabled,
+    required bool canManageAi,
+  }) async {
+    final action = await showModalBottomSheet<_AiAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'AI actions',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Weekly plan'),
+              subtitle: const Text('Propose tasks for the coming week'),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_AiAction.weeklyPlan),
+            ),
+            ListTile(
+              leading: const Icon(Icons.summarize_outlined),
+              title: const Text('Project briefing'),
+              subtitle: const Text('Summarise the current state'),
+              onTap: () => Navigator.of(sheetContext).pop(_AiAction.briefing),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bolt_outlined),
+              title: const Text('Create a task from text'),
+              subtitle: const Text('Turn a sentence into a task'),
+              onTap: () => Navigator.of(sheetContext).pop(_AiAction.capture),
+            ),
+            if (canManageAi) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(
+                  aiEnabled == true
+                      ? Icons.toggle_on_outlined
+                      : Icons.toggle_off_outlined,
+                ),
+                title: Text(
+                  aiEnabled == true ? 'Disable AI' : 'Enable AI',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  aiEnabled == true
+                      ? 'Stop using AI for this project'
+                      : 'Allow AI proposals for this project',
+                ),
+                onTap: () => Navigator.of(sheetContext).pop(_AiAction.toggleAi),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (action == null || !context.mounted) {
+      return;
+    }
+
+    if (action == _AiAction.toggleAi) {
+      await _setAi(context, projectId: projectId, enabled: aiEnabled != true);
+      return;
+    }
+
+    final allowed = await _ensureAiEnabled(
+      context,
+      projectId: projectId,
+      project: project,
+      aiEnabled: aiEnabled,
+      canManageAi: canManageAi,
+    );
+    if (!allowed || !context.mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _AiAction.weeklyPlan:
+        await _proposeWeeklyPlan(context, projectId);
+        break;
+      case _AiAction.briefing:
+        await _showBriefing(context, projectId);
+        break;
+      case _AiAction.capture:
+        await _captureTask(context, projectId);
+        break;
+      case _AiAction.toggleAi:
+        break; // handled above
+    }
+  }
+
+  Future<bool> _ensureAiEnabled(
+    BuildContext context, {
+    required int projectId,
+    required Project? project,
+    required bool? aiEnabled,
+    required bool canManageAi,
+  }) async {
+    if (aiEnabled != false) {
+      return true;
+    }
+    final name = project?.name ?? 'this project';
+    if (canManageAi) {
+      final enable = await showEnableAiDialog(context, name);
+      if (!enable) {
+        return false;
+      }
+      return _setAi(context, projectId: projectId, enabled: true);
+    }
+    if (context.mounted) {
+      showAppSnackBar(
+        context,
+        'AI is disabled for this project. Ask an admin or the project '
+        'owner to enable it.',
+      );
+    }
+    return false;
+  }
+
+  Future<bool> _setAi(
+    BuildContext context, {
+    required int projectId,
+    required bool enabled,
+  }) async {
     try {
-      await ref.read(aiServiceProvider).weeklyPlan(projectId);
+      await ref
+          .read(projectServiceProvider)
+          .setAiOptIn(projectId: projectId, enabled: enabled);
+      await ref.read(projectListProvider.notifier).refresh();
+      if (context.mounted) {
+        showAppSnackBar(
+          context,
+          enabled ? 'AI enabled for this project.' : 'AI disabled.',
+        );
+      }
+      return true;
     } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(context, userMessage(e));
+      }
+      return false;
+    }
+  }
+
+  /// Runs a slow AI call behind the busy state and surfaces API errors.
+  Future<T?> _runAi<T>(
+    BuildContext context,
+    Future<T> Function() run,
+  ) async {
+    setState(() => _aiBusy = true);
+    try {
+      return await run();
+    } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(context, userMessage(e));
+      }
+      return null;
+    } finally {
       if (mounted) {
+        setState(() => _aiBusy = false);
+      }
+    }
+  }
+
+  Future<void> _proposeWeeklyPlan(BuildContext context, int projectId) async {
+    final proposal = await _runAi(
+      context,
+      () => ref.read(aiServiceProvider).weeklyPlan(projectId),
+    );
+    if (proposal == null || !context.mounted) {
+      return;
+    }
+    final selected = await showWeeklyPlanDialog(context, proposal);
+    if (selected == null || selected.isEmpty || !context.mounted) {
+      return;
+    }
+    try {
+      for (final task in selected) {
+        await ref.read(taskServiceProvider).createTask(
+              projectId: projectId,
+              title: task.title,
+              description: task.description,
+              priority: task.priority,
+              dueDate:
+                  task.dueDate == null ? null : DateTime.tryParse(task.dueDate!),
+            );
+      }
+      await ref.read(projectTasksProvider(projectId).notifier).refresh();
+      if (context.mounted) {
+        showAppSnackBar(
+          context,
+          'Created ${selected.length} task(s) from the AI plan.',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(context, userMessage(e));
+      }
+    }
+  }
+
+  Future<void> _showBriefing(BuildContext context, int projectId) async {
+    final proposal = await _runAi(
+      context,
+      () => ref.read(aiServiceProvider).briefing(projectId),
+    );
+    if (proposal != null && context.mounted) {
+      await showBriefingDialog(context, proposal);
+    }
+  }
+
+  Future<void> _captureTask(BuildContext context, int projectId) async {
+    final text = await showCaptureInputDialog(context);
+    if (text == null || text.trim().isEmpty || !context.mounted) {
+      return;
+    }
+    final proposal = await _runAi(
+      context,
+      () => ref.read(aiServiceProvider).capture(projectId, text),
+    );
+    if (proposal == null || !context.mounted) {
+      return;
+    }
+    final approved = await showCaptureProposalDialog(context, proposal);
+    if (!approved) {
+      return;
+    }
+    try {
+      await ref.read(taskServiceProvider).createTask(
+            projectId: projectId,
+            title: proposal.title,
+            description: proposal.description,
+            priority: proposal.priority,
+            dueDate: proposal.dueDate == null
+                ? null
+                : DateTime.tryParse(proposal.dueDate!),
+          );
+      await ref.read(projectTasksProvider(projectId).notifier).refresh();
+      if (context.mounted) {
+        showAppSnackBar(context, 'Task created from the AI proposal.');
+      }
+    } catch (e) {
+      if (context.mounted) {
         showAppSnackBar(context, userMessage(e));
       }
     }

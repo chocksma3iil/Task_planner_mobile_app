@@ -67,8 +67,23 @@ class UnauthorizedError(ApiError):
     status_code = 401
 
 
+class RateLimitedError(ApiError):
+    """Too many failed attempts; the client must wait for the window."""
+
+    status_code = 429
+
+    def __init__(self) -> None:
+        super().__init__("Too many login attempts. Try again later.")
+
+
 class ForbiddenError(ApiError):
     status_code = 403
+
+
+class AIServiceUnavailableError(ApiError):
+    """The local AI model is unreachable or produced an unusable answer."""
+
+    status_code = 503
 
 
 class PendingAccountError(ForbiddenError):

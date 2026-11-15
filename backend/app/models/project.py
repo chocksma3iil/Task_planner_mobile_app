@@ -18,6 +18,9 @@ class Project(Base):
     # Plain id (no SQL FK): avoids a circular constraint with accounts;
     # correctness is enforced in the service layer, like approved_by.
     owner_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ai_opt_in: Mapped[bool] = mapped_column(
+        Integer, server_default="0", default=False, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now, server_default=func.now()
     )

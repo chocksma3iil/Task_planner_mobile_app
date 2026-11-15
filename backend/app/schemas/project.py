@@ -12,6 +12,7 @@ class ProjectOut(BaseModel):
     description: str | None = None
     status: str
     owner_id: int | None = None
+    ai_opt_in: bool = False
     created_at: UtcDateTime
 
 
@@ -22,3 +23,14 @@ class ProjectIn(BaseModel):
 
 class AssignOwnerIn(BaseModel):
     owner_id: int
+
+
+class ProjectRestoreIn(BaseModel):
+    pass
+
+
+class ProjectListOut(BaseModel):
+    items: list[ProjectOut]
+    total: int
+    limit: int
+    offset: int

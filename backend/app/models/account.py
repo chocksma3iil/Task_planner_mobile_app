@@ -4,7 +4,7 @@ One row per person; accounts double as project members and task assignees.
 """
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.database import Base
@@ -26,6 +26,16 @@ class Assignee(Base):
     status: Mapped[str] = mapped_column(String(32), server_default="pending")
     # Plain id on purpose (no SQL self-FK): enforced in the service layer.
     approved_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Bumped on password reset (A11): every older token fails its version check.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # 2FA (A12): TOTP secret (base32), enabled flag, and single-use backup codes.
+    totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(
+        Integer, server_default="0", default=False, nullable=False
+    )
+    totp_backup_codes: Mapped[list[str] | None] = mapped_column(
+        JSON, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now, server_default=func.now()
     )
