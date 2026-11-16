@@ -22,6 +22,7 @@ from ..core.security import create_token, hash_password, verify_password
 from ..core.time import utc_now
 from ..models import Assignee, PasswordResetToken, Project
 from . import email_service
+from . import notification_service
 from . import totp
 
 RESET_CODE_TTL = timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)
@@ -89,6 +90,19 @@ def sign_up(
     db.add(account)
     db.commit()
     db.refresh(account)
+    # Notify the project owner that a self-signed member needs confirmation.
+    if status == PENDING and project_id is not None:
+        project = db.get(Project, project_id)
+        if project is not None and project.owner_id is not None:
+            owner = db.get(Assignee, project.owner_id)
+            if owner is not None:
+                notification_service.notify_pending_signup(
+                    db,
+                    owner=owner,
+                    new_member=account,
+                    project_name=project.name,
+                )
+        db.commit()
     return account
 
 

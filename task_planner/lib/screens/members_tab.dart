@@ -177,7 +177,8 @@ class _MembersTabState extends ConsumerState<MembersTab> {
                         if (canManage && pending.isNotEmpty) ...[
                           const SectionHeader('Waiting for confirmation'),
                           for (final m in pending) ...[
-                            _card(context, ref, user, m, pending: true),
+                            _card(context, ref, user, m,
+                                pending: true, canManage: canManage),
                             const SizedBox(height: 12),
                           ],
                         ],
@@ -185,14 +186,16 @@ class _MembersTabState extends ConsumerState<MembersTab> {
                           if (active.isNotEmpty) ...[
                             const SectionHeader('Members'),
                             for (final m in active) ...[
-                              _card(context, ref, user, m, pending: false),
+                              _card(context, ref, user, m,
+                                  pending: false, canManage: canManage),
                               const SizedBox(height: 12),
                             ],
                           ],
                         ] else if (searched.isNotEmpty) ...[
                           const SectionHeader('Members'),
                           for (final m in searched) ...[
-                            _card(context, ref, user, m, pending: false),
+                            _card(context, ref, user, m,
+                                pending: false, canManage: canManage),
                             const SizedBox(height: 12),
                           ],
                         ],
@@ -216,6 +219,7 @@ class _MembersTabState extends ConsumerState<MembersTab> {
     Account viewer,
     Account member, {
     required bool pending,
+    required bool canManage,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final showStatus = isOwnerOrAdmin(viewer.role) || isTeamLead(viewer.role);
@@ -289,7 +293,12 @@ class _MembersTabState extends ConsumerState<MembersTab> {
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
       ),
-      trailing: const SizedBox.shrink(),
+      trailing: pending && canManage
+          ? FilledButton.tonal(
+              onPressed: () => _confirmMember(context, ref, member.id),
+              child: const Text('Confirm'),
+            )
+          : const SizedBox.shrink(),
     );
   }
 
@@ -339,6 +348,24 @@ class _MembersTabState extends ConsumerState<MembersTab> {
           );
       if (context.mounted) {
         ref.invalidate(visibleMembersProvider);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(context, userMessage(e));
+      }
+    }
+  }
+
+  Future<void> _confirmMember(
+    BuildContext context,
+    WidgetRef ref,
+    int userId,
+  ) async {
+    try {
+      await ref.read(memberServiceProvider).confirmUser(userId: userId);
+      if (context.mounted) {
+        ref.invalidate(visibleMembersProvider);
+        showAppSnackBar(context, 'Member confirmed');
       }
     } catch (e) {
       if (context.mounted) {

@@ -214,6 +214,27 @@ def notify_member_added(
     )
 
 
+def notify_pending_signup(
+    db: Session,
+    *,
+    owner: Assignee,
+    new_member: Assignee,
+    project_name: str,
+) -> None:
+    """Notify the project owner that a self-signed member needs confirmation."""
+    _notify(
+        db,
+        user=owner,
+        n_type="member_added",
+        title=f"New member needs confirmation: {project_name}",
+        body=(
+            f"{new_member.name} ({new_member.email}) signed up and needs "
+            f"your confirmation."
+        ),
+        payload=str(new_member.id),
+    )
+
+
 def notify_member_confirmed(
     db: Session,
     *,
