@@ -31,11 +31,15 @@ services:
       ENVIRONMENT: development
       CORS_ORIGINS: "*"
       CREATE_SCHEMA_ON_STARTUP: "false"
-      # AI layer (v2.0): local Ollama on the host, reached through Docker.
-      # A 3B model fits this machine (16 GB RAM / 4 GB VRAM); 7B does not.
-      AI_PROVIDER: "ollama"
-      AI_MODEL: "llama3.2:latest"
-      AI_BASE_URL: "http://host.docker.internal:11434"
+      # AI layer (v2.0): Ollama on this machine crashes with a CUDA toolchain
+      # incompatibility (NVIDIA driver 556.12 vs Ollama 0.40.3 PTX). The mock
+      # provider is used by default — it parses your input text for title,
+      # priority, due_date, and assignee instead of returning hardcoded values.
+      # To use real Ollama: update NVIDIA drivers, then set AI_PROVIDER=ollama
+      # and AI_BASE_URL=http://ollama:11434 (Docker) or host.docker.internal:11434 (host).
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_MODEL: ${AI_MODEL:-llama3.2:latest}
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:11434}
       AI_TIMEOUT_SECONDS: "180"
       # Email (password reset + notifications). Empty values disable sending.
       SMTP_HOST: ${SMTP_HOST:-}

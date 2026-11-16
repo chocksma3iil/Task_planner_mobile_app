@@ -10,6 +10,7 @@ class WeeklyPlanTask(BaseModel):
     priority: str = Field(default="medium")
     due_date: str | None = None
     status: str = Field(default="todo")
+    assignee: str | None = None
 
 
 class WeeklyPlanOut(BaseModel):
@@ -42,6 +43,7 @@ class CaptureOut(BaseModel):
     priority: str = Field(default="medium")
     due_date: str | None = None
     status: str = Field(default="todo")
+    assignee: str | None = None
 
 
 class AiOptInIn(BaseModel):

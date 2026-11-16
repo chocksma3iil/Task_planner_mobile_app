@@ -9,8 +9,9 @@ from fastapi.responses import JSONResponse
 from . import models  # noqa: F401 - registers tables on Base.metadata
 from .api.router import api_router
 from .core.config import CORS_ORIGINS, CREATE_SCHEMA_ON_STARTUP
-from .core.database import Base, engine
+from .core.database import Base, engine, SessionLocal
 from .core.errors import ApiError
+from .services.seed import seed_if_empty
 
 
 @asynccontextmanager
@@ -18,6 +19,13 @@ async def lifespan(_: FastAPI):
     # Development convenience only; production runs `alembic upgrade head`.
     if CREATE_SCHEMA_ON_STARTUP:
         Base.metadata.create_all(bind=engine)
+    # Seed demo data on a fresh database (safe on every start: no-op if data
+    # already exists). Runs after alembic has created the tables.
+    db = SessionLocal()
+    try:
+        seed_if_empty(db)
+    finally:
+        db.close()
     yield
 
 

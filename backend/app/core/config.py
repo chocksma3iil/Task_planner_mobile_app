@@ -39,7 +39,7 @@ CORS_ORIGINS = [
 
 # AI layer (v2.0): Ollama local + mock provider for tests.
 AI_PROVIDER = os.getenv("AI_PROVIDER", "ollama").strip().lower()
-AI_MODEL = os.getenv("AI_MODEL", "qwen2.5:7b").strip()
+AI_MODEL = os.getenv("AI_MODEL", "llama3.2:latest").strip()
 AI_BASE_URL = os.getenv("AI_BASE_URL", "http://localhost:11434").strip()
 # Generation is slow on CPU; the client waits longer than the normal 15 s.
 AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "180"))

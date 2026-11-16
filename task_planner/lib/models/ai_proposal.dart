@@ -26,6 +26,7 @@ class AiTaskProposal {
     required this.priority,
     this.dueDate,
     required this.status,
+    this.assignee,
   });
 
   final String title;
@@ -33,6 +34,7 @@ class AiTaskProposal {
   final String priority;
   final String? dueDate;
   final String status;
+  final String? assignee;
 
   factory AiTaskProposal.fromJson(Map<String, dynamic> json) => AiTaskProposal(
     title: json['title'] as String? ?? '',
@@ -40,6 +42,7 @@ class AiTaskProposal {
     priority: json['priority'] as String? ?? 'medium',
     dueDate: json['due_date'] as String?,
     status: json['status'] as String? ?? 'todo',
+    assignee: json['assignee'] as String?,
   );
 }
 
@@ -93,6 +96,7 @@ class AiCaptureProposal {
     required this.priority,
     this.dueDate,
     required this.status,
+    this.assignee,
   });
 
   final String title;
@@ -100,6 +104,7 @@ class AiCaptureProposal {
   final String priority;
   final String? dueDate;
   final String status;
+  final String? assignee;
 
   factory AiCaptureProposal.fromJson(Map<String, dynamic> json) =>
       AiCaptureProposal(
@@ -108,5 +113,6 @@ class AiCaptureProposal {
         priority: json['priority'] as String? ?? 'medium',
         dueDate: json['due_date'] as String?,
         status: json['status'] as String? ?? 'todo',
+        assignee: json['assignee'] as String?,
       );
 }

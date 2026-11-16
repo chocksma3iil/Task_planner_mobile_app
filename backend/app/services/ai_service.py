@@ -224,7 +224,8 @@ class AIService:
             '{"title": "Weekly Plan", "tasks": [{"title": "...", '
             '"description": "...", "priority": "low|medium|high", '
             '"due_date": "YYYY-MM-DD or null", '
-            '"status": "todo|in_progress|completed"}]}\n'
+            '"status": "todo|in_progress|completed", '
+            '"assignee": "name or null"}]}\n'
             "Do not include explanations outside the JSON."
         )
 
@@ -273,7 +274,8 @@ class AIService:
             f"User input: '{text}'\n\n"
             "Extract a single task proposal. Return ONLY a JSON object:\n"
             '{"title": "...", "description": "...", "priority": "low|medium|high", '
-            '"due_date": "YYYY-MM-DD or null", "status": "todo"}\n'
+            '"due_date": "YYYY-MM-DD or null", "status": "todo", '
+            '"assignee": "name or null"}\n'
             "Do not include explanations outside the JSON."
         )
 
@@ -298,6 +300,7 @@ class AIService:
                     "priority": _clean_priority(item.get("priority")),
                     "due_date": _clean_due_date(item.get("due_date")),
                     "status": _clean_status(item.get("status")),
+                    "assignee": _clean_text(item.get("assignee")) or None,
                 }
             )
             if len(tasks) == 7:
@@ -345,4 +348,5 @@ class AIService:
             "priority": _clean_priority(data.get("priority")),
             "due_date": _clean_due_date(data.get("due_date")),
             "status": _clean_status(data.get("status")),
+            "assignee": _clean_text(data.get("assignee")) or None,
         }

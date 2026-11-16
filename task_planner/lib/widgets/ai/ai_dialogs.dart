@@ -22,6 +22,7 @@ Future<List<AiTaskProposal>?> showWeeklyPlanDialog(
         final parts = <String>[
           'Priority: ${task.priority}',
           if (task.dueDate != null) 'Due: ${task.dueDate}',
+          if (task.assignee != null) 'Assignee: ${task.assignee}',
         ];
         if (task.description != null && task.description!.isNotEmpty) {
           parts.add(task.description!);
@@ -120,7 +121,8 @@ Future<bool> showCaptureProposalDialog(
             const SizedBox(height: 10),
             Text(
               'Priority: ${proposal.priority}'
-              '${proposal.dueDate == null ? '' : ' • Due: ${proposal.dueDate}'}',
+              '${proposal.dueDate == null ? '' : ' • Due: ${proposal.dueDate}'}'
+              '${proposal.assignee == null ? '' : ' • Assignee: ${proposal.assignee}'}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
